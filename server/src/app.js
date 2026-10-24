@@ -1,0 +1,45 @@
+const express = require("express");
+const path = require("path");
+const { clerkMiddleware } = require("@clerk/express");
+const healthRoutes = require("./modules/health/health.routes");
+const productsRoutes = require("./modules/products/products.routes");
+const ordersRoutes = require("./modules/orders/orders.routes");
+const adminRoutes = require("./modules/admin/admin.routes");
+const platformRoutes = require("./modules/platform/platform.routes");
+const customCakeRoutes = require("./modules/custom-cakes/custom-cakes.routes");
+const siteSettingsRoutes = require("./modules/site-settings/site-settings.routes");
+const clerkWebhooksRoutes = require("./modules/webhooks/clerk-webhooks.routes");
+const notFound = require("./middleware/not-found");
+const errorHandler = require("./middleware/error-handler");
+const { nodeEnv } = require("./config/env");
+
+const app = express();
+app.disable("x-powered-by");
+app.use(clerkMiddleware());
+app.use("/api/webhooks/clerk", express.raw({ type: "application/json" }), clerkWebhooksRoutes);
+app.use((request, response, next) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("X-Frame-Options", "SAMEORIGIN");
+  response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  if (nodeEnv === "production") response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  next();
+});
+app.use(express.json({ limit: "100kb" }));
+app.use("/api", healthRoutes);
+app.use("/api/products", productsRoutes);
+app.use("/api/orders", ordersRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/custom-cakes", customCakeRoutes);
+app.use("/api/site-settings", siteSettingsRoutes);
+app.use("/api", platformRoutes);
+const distDirectory = path.resolve(__dirname, "../../client/dist");
+app.use(express.static(distDirectory, { index: false, maxAge: nodeEnv === "production" ? "1h" : 0 }));
+app.get("*", (request, response, next) => {
+  if (request.path.startsWith("/api/")) return next();
+  response.sendFile(path.join(distDirectory, "index.html"), error => error ? next(error) : undefined);
+});
+app.use(notFound);
+app.use(errorHandler);
+module.exports = app;

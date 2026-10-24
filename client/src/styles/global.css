@@ -1,0 +1,26 @@
+html, body, #root { width: 100%; min-height: 100%; margin: 0; }
+
+.app-message {
+  display: grid;
+  min-height: 100%;
+  place-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #2a2020;
+  font: 500 1rem/1.5 system-ui, sans-serif;
+  text-align: center;
+}
+
+.app-message h1,
+.app-message p { margin: 0; }
+.app-message p { color: #bd3542; font-size: .9rem; font-weight: 800; letter-spacing: .15em; }
+.app-message a,
+.app-message button { justify-self: center; padding: .75rem 1rem; border: 0; border-radius: .5rem; background: #bd3542; color: #fff; font: inherit; text-decoration: none; cursor: pointer; }
+
+.auth-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(280px, 1fr) minmax(360px, 1fr); gap: clamp(2rem, 7vw, 9rem); align-items: center; padding: clamp(2rem, 7vw, 7rem); background: #fff8f5; }
+.auth-intro { max-width: 33rem; color: #fff; padding: clamp(2rem, 5vw, 5rem); border-radius: 2rem; background: #321c22; box-shadow: 0 24px 60px rgba(59, 31, 38, .18); }
+.auth-intro p { margin: 0 0 1.5rem; color: #f7d9cf; font-size: .75rem; font-weight: 800; letter-spacing: .22em; }
+.auth-intro h1 { margin: 0 0 1.25rem; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.08; }
+.auth-intro span { color: #f2e7e3; font-size: 1.05rem; line-height: 1.7; }
+.auth-card { display: grid; place-items: center; min-width: 0; }
+@media (max-width: 760px) { .auth-page { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.25rem; } .auth-intro { padding: 2rem; border-radius: 1.25rem; } }

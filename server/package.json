@@ -1,0 +1,22 @@
+{
+  "name": "darbys-pastries-server",
+  "version": "1.0.0",
+  "description": "Darby's Pastries API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "seed:catalog": "node src/scripts/seed-catalog.mjs",
+    "migrate:catalog-images": "node src/scripts/migrate-catalog-images.mjs",
+    "reset:image-library": "node src/scripts/reset-image-library.js"
+  },
+  "dependencies": {
+    "@clerk/express": "^2.1.75",
+    "cloudinary": "^2.11.0",
+    "dotenv": "^18.0.5",
+    "express": "^4.18.2",
+    "mongoose": "^9.10.4",
+    "multer": "^2.4.0"
+  }
+}
