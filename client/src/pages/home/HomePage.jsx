@@ -11,6 +11,7 @@ import useCart from "../../features/cart/hooks/useCart";
 import useWishlist from "../../features/wishlist/hooks/useWishlist";
 import useCustomCakeBuilder, { flavourRates, shapeSurcharge } from "../../features/custom-cakes/hooks/useCustomCakeBuilder";
 import { asset, rupees, whatsappOrderLink } from "../../utils/storefrontUtils";
+import { apiUrl } from "../../utils/apiUrl";
 
 const categoryDefaults = [
   { id: "classic", label: "Classic Cakes", detail: "Black Forest Classic, White Forest, Vanilla Truffle", image: "", action: "classic" },
@@ -47,10 +48,10 @@ function HomePage() {
   } = useCart();
   const { wishlist, setWishlist, wishlistCount, toggleWishlist } = useWishlist();
   const placeCartOrder = async (customer) => {
-    const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customer, items: cart.map((item) => ({ productId: item.id, variantId: item.variantId, quantity: item.quantity })) }) });
+    const response = await fetch(apiUrl("/api/orders"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customer, items: cart.map((item) => ({ productId: item.id, variantId: item.variantId, quantity: item.quantity })) }) });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.message || "Order could not be saved.");
-    return { order: payload.data, whatsappUrl: buildOrderCartLink() };
+    return { order: payload.data, whatsappUrl: buildOrderCartLink({ ...customer, orderId: payload.data.orderId }) };
   };
   const {
     builder,
@@ -73,7 +74,7 @@ function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/site-settings", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((payload) => {
+    fetch(apiUrl("/api/site-settings"), { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((payload) => {
       if (payload?.data?.hero) setHero((current) => ({ ...current, ...payload.data.hero }));
       if (payload?.data?.customCakeSummaryImage) setCustomCakeSummaryImage(payload.data.customCakeSummaryImage);
       if (Array.isArray(payload?.data?.categories)) setCategories(payload.data.categories);
@@ -86,7 +87,7 @@ function HomePage() {
       if (!isAuthLoaded || !isSignedIn) return active && setCanAccessAdmin(false);
       try {
         const token = await getToken();
-        const response = await fetch("/api/admin", { headers: { Authorization: `Bearer ${token}` } });
+        const response = await fetch(apiUrl("/api/admin"), { headers: { Authorization: `Bearer ${token}` } });
         if (active) setCanAccessAdmin(response.ok);
       } catch { if (active) setCanAccessAdmin(false); }
     }
@@ -112,7 +113,6 @@ function HomePage() {
     document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const clearMenuFilter = browseAllCakes;
 
   const dialogContent = {
     "How to Order": {
@@ -205,44 +205,6 @@ function HomePage() {
               <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button></div>
               <div className="nav-item"><a className="nav-link" href="#footer-contact" onClick={() => setMobileNavOpen(false)}>Contact</a></div>
             </nav>
-            {false && <nav className={`nav-links ${mobileNavOpen ? "open" : ""}`} aria-label="Legacy navigation">
-              <div className="mobile-drawer-head">
-                <strong>Browse Darby's</strong>
-                <button type="button" onClick={() => setMobileNavOpen(false)}>×</button>
-              </div>
-
-              <div className="nav-item"><a className="nav-link" href="#home" onClick={() => setMobileNavOpen(false)}>Home</a></div>
-              <div className="nav-item" data-mega-item>
-                <button type="button" className="nav-link">Cakes ⌄</button>
-                <div className="mega-menu">
-                  <div className="mega-panel">
-                    <div className="mega-subcategory-list">
-                      <div className="mega-group"><strong>Celebration</strong><button type="button" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Birthday Cakes" })}>Birthday Cakes</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "premium", label: "Anniversary Cakes" })}>Anniversary Cakes</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "photo", label: "Photo Cakes" })}>Photo Cakes</button><a href="#custom">Designer Cakes</a></div>
-                      <div className="mega-group"><strong>Preferences</strong><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "classic", label: "Classic Cakes" })}>Classic Cakes</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "desserts", label: "Cupcakes" })}>Cupcakes</button><button type="button" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button></div>
-                      <div className="mega-group"><strong>Flavours</strong><button type="button" onClick={() => openMenuToFilter({ kind: "product", value: "Red Velvet", label: "Red Velvet Cakes" })}>Red Velvet Cakes</button><button type="button" onClick={() => openMenuToFilter({ kind: "product", value: "Black Forest", label: "Black Forest Cakes" })}>Black Forest Cakes</button><button type="button" onClick={() => openMenuToFilter({ kind: "product", value: "Ferrero Rocher", label: "Ferrero Rocher" })}>Ferrero Rocher</button></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="nav-item" data-mega-item>
-                <button type="button" className="nav-link">Occasions ⌄</button>
-                <div className="mega-menu"><div className="mega-panel"><div className="mega-subcategory-list"><div className="mega-group"><strong>Milestones</strong><button type="button" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Birthday" })}>Birthday</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "premium", label: "Anniversary" })}>Anniversary</button><a href="#custom">Wedding</a></div></div></div></div>
-              </div>
-              <div className="nav-item" data-mega-item>
-                <button type="button" className="nav-link">Custom Cakes ⌄</button>
-                <div className="mega-menu"><div className="mega-panel"><div className="mega-subcategory-list"><div className="mega-group"><strong>Personalised</strong><a href="#custom">Photo Cakes</a><a href="#custom">Theme Cakes</a><a href="#custom">Custom Message Cakes</a></div></div></div></div>
-              </div>
-              <div className="nav-item" data-mega-item>
-                <button type="button" className="nav-link">Flowers ⌄</button>
-                <div className="mega-menu"><div className="mega-panel"><div className="mega-subcategory-list"><div className="mega-group"><strong>Bouquets</strong><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "flowers", label: "Rose Bouquets" })}>Rose Bouquets</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "flowers", label: "Mixed Bouquets" })}>Mixed Bouquets</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "flowers", label: "Lilies & Orchids" })}>Lilies & Orchids</button></div></div></div></div>
-              </div>
-              <div className="nav-item" data-mega-item>
-                <button type="button" className="nav-link">Chocolates ⌄</button>
-                <div className="mega-menu"><div className="mega-panel"><div className="mega-subcategory-list"><div className="mega-group"><strong>Chocolate Selection</strong><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "chocolates", label: "Dark Chocolate" })}>Dark Chocolate</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "chocolates", label: "Milk Chocolate" })}>Milk Chocolate</button><button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "chocolates", label: "Truffles" })}>Truffles</button></div></div></div></div>
-              </div>
-              <div className="nav-item"><a className="nav-link" href="#menu">Offers</a></div>
-              <div className="nav-item"><a className="nav-link" href="#footer-contact">Contact</a></div>
-            </nav>}
             <nav className="legacy-desktop-nav" aria-label="Main navigation">
               <a href="#home">Home</a>
               <button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "classic", label: "Classic Cakes" })}>Classic Cakes</button>
@@ -254,16 +216,6 @@ function HomePage() {
               <button type="button" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button>
               <a href="#footer-contact">Contact</a>
             </nav>
-            {false && <nav className="legacy-desktop-nav" aria-label="Legacy navigation">
-              <a href="#home">Home</a>
-              <div className="legacy-nav-item"><button type="button">Cakes <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button><div className="legacy-mega-menu"><div><strong>Celebration</strong><button onClick={() => openMenuToFilter({ kind: "bestseller", label: "Birthday Cakes" })}>Birthday Cakes</button><button onClick={() => openMenuToFilter({ kind: "category", value: "premium", label: "Anniversary Cakes" })}>Anniversary Cakes</button><button onClick={() => openMenuToFilter({ kind: "category", value: "photo", label: "Photo Cakes" })}>Photo Cakes</button><a href="#custom">Designer Cakes</a></div><div><strong>Preferences</strong><button onClick={() => openMenuToFilter({ kind: "category", value: "classic", label: "Classic Cakes" })}>Classic Cakes</button><button onClick={() => openMenuToFilter({ kind: "category", value: "desserts", label: "Cupcakes" })}>Cupcakes</button><a href="#menu">Eggless Cakes</a></div><div><strong>Flavours</strong><button onClick={() => openMenuToFilter({ kind: "product", value: "Red Velvet", label: "Red Velvet Cakes" })}>Red Velvet Cakes</button><button onClick={() => openMenuToFilter({ kind: "product", value: "Black Forest", label: "Black Forest Cakes" })}>Black Forest Cakes</button><a href="#menu">Fruit Cakes</a></div></div></div>
-              <div className="legacy-nav-item"><button type="button">Occasions <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button><div className="legacy-mega-menu"><div><strong>Milestones</strong><button onClick={() => openMenuToFilter({ kind: "bestseller", label: "Birthday" })}>Birthday</button><a href="#custom">Anniversary</a><a href="#custom">Wedding</a></div><div><strong>Family</strong><a href="#custom">Baby Shower</a><a href="#custom">Mother's Day</a><a href="#custom">Father's Day</a></div><div><strong>Special Days</strong><a href="#custom">Valentine</a><a href="#custom">Friendship Day</a></div></div></div>
-              <div className="legacy-nav-item"><button type="button">Custom Cakes <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button><div className="legacy-mega-menu"><div><strong>Personalised</strong><a href="#custom">Photo Cakes</a><a href="#custom">Theme Cakes</a><a href="#custom">Custom Message Cakes</a></div><div><strong>Celebrations</strong><a href="#custom">Kids Cakes</a><a href="#custom">Wedding Cakes</a></div><div><strong>Business</strong><a href="#custom">Corporate Cakes</a></div></div></div>
-              <div className="legacy-nav-item"><button type="button">Flowers <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button><div className="legacy-mega-menu"><div><strong>Bouquets</strong><button onClick={() => openMenuToFilter({ kind: "category", value: "flowers", label: "Rose Bouquets" })}>Rose Bouquets</button><button onClick={() => openMenuToFilter({ kind: "category", value: "flowers", label: "Mixed Bouquets" })}>Mixed Bouquets</button><button onClick={() => openMenuToFilter({ kind: "category", value: "flowers", label: "Lilies & Orchids" })}>Lilies & Orchids</button></div><div><strong>Gifts & Combos</strong><a href="#menu">Flower Baskets</a><a href="#menu">Flower + Cake Combos</a></div></div></div>
-              <div className="legacy-nav-item"><button type="button">Chocolates <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg></button><div className="legacy-mega-menu"><div><strong>Chocolate Selection</strong><button onClick={() => openMenuToFilter({ kind: "category", value: "chocolates", label: "Dark Chocolate" })}>Dark Chocolate</button><button onClick={() => openMenuToFilter({ kind: "category", value: "chocolates", label: "Milk Chocolate" })}>Milk Chocolate</button><button onClick={() => openMenuToFilter({ kind: "category", value: "chocolates", label: "Truffles" })}>Truffles</button></div><div><strong>Gifts & Combos</strong><a href="#menu">Chocolate Boxes</a><a href="#menu">Chocolate Bouquets</a><a href="#menu">Chocolate + Cake Combos</a></div></div></div>
-              <a href="#menu">Offers</a>
-              <a href="#footer-contact">Contact</a>
-            </nav>}
           </div>
         </div>
       </header>
@@ -311,20 +263,6 @@ function HomePage() {
                   <span className="category-card-body"><h3>{category.label}</h3></span>
                 </button>
               ))}
-              {false && [
-                ["Classic Cakes", "Black Forest Classic, White Forest, Vanilla Truffle", { kind: "category", value: "classic", label: "Classic Cakes" }],
-                ["Chocolate Cakes", "Double Chocolate, Choco Chips, Choco Truffle, Oreo Forest, Belgium Chocolate", { kind: "category", value: "chocolate", label: "Chocolate Cakes" }],
-                ["Fruit Cakes", "Pineapple, Mango, Strawberry, Blueberry, Black Currant", { kind: "category", value: "fruit", label: "Fruit Cakes" }],
-                ["Premium & Special Cakes", "Rasmalai, Irish Coffee, Caramel Butterscotch, Dry Fruit, Mango Almond, Honey Almond", { kind: "special", label: "Premium & Special Cakes" }],
-                ["Photo & Custom Cakes", "Photo Cakes, Birthday Themes, Custom Message Cakes", { kind: "custom" }],
-                ["Desserts", "Donuts, Choco Lava, Cup Cakes, Cake Pops, Brownies, Apple Pie", { kind: "category", value: "desserts", label: "Desserts" }],
-              ].map(([label, detail, filter]) => (
-                <button key={label} className="category-card" type="button" onClick={() => openMenuToFilter(filter)}>
-                  <span className="category-card-placeholder">Darby's Pastries</span>
-                  <span className="category-card-detail">{detail}</span>
-                  <span className="category-card-body"><h3>{label}</h3><span>Explore →</span></span>
-                </button>
-              ))}
             </div>
           </div>
         </section>
@@ -338,12 +276,6 @@ function HomePage() {
                 <button type="button" className="browse-all-cakes" onClick={browseAllCakes}>Browse All Cakes <span aria-hidden="true">→</span></button>
               </div>
             </div>
-            {false && <div className="menu-filter-status active" role="status" aria-live="polite">
-              <span>{activeFilter ? `${activeFilter.label} · ${visibleProducts.length} ${visibleProducts.length === 1 ? "item" : "items"}` : "Browse full menu"}</span>
-              <button type="button" className="menu-filter-clear" onClick={clearMenuFilter}>
-                Browse full menu
-              </button>
-            </div>}
             <div className="menu-grid">
               {visibleProducts.length ? (
                 visibleProducts.map((product) => (

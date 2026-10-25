@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { rupees } from "../../../utils/storefrontUtils";
+import { apiUrl } from "../../../utils/apiUrl";
 
 export const flavourRates = {
   "Classic Vanilla": 700,
@@ -44,7 +45,7 @@ export default function useCustomCakeBuilder() {
     ].join("\n");
     try {
       setBuilderStatus("Saving your order…");
-      const response = await fetch("/api/orders/custom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customer: { name: builder.customerName, phone: builder.phone, address: builder.address }, customCake: builder }) });
+      const response = await fetch(apiUrl("/api/orders/custom"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customer: { name: builder.customerName, phone: builder.phone, address: builder.address }, customCake: builder }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "Order could not be saved.");
       window.open(`https://wa.me/919835888631?text=${encodeURIComponent(`Order ID: ${payload.data.orderId}\n${message}`)}`, "_blank", "noopener");

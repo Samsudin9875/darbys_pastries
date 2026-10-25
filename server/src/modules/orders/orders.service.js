@@ -54,4 +54,30 @@ async function calculateCatalogueOrder(items, findLine) {
   const total = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   return { lines, subtotal: total, total, advanceDue: Math.round(total / 2) };
 }
-module.exports = { calculateCatalogueOrder, calculateCustomCakeOrder, flavourRates, shapeSurcharge };
+async function reserveCatalogueStock(lines, reserveLine) {
+  for (const line of lines) {
+    const reserved = await reserveLine(line);
+    if (!reserved) throw Object.assign(invalid(`${line.name} no longer has enough stock.`), { status: 409, code: "out_of_stock" });
+  }
+}
+function paymentUpdate(order, raw) {
+  const next = {};
+  for (const key of ["advancePaid", "remainingPaid", "refunded"]) {
+    if (raw[key] === undefined) continue;
+    const value = Number(raw[key]);
+    if (!Number.isFinite(value) || value < 0) throw invalid("Payment values must be valid amounts.");
+    next[key] = Math.round(value * 100) / 100;
+  }
+  const advancePaid = next.advancePaid ?? order.advancePaid;
+  const remainingPaid = next.remainingPaid ?? order.remainingPaid;
+  const refunded = next.refunded ?? order.refunded;
+  if (advancePaid > order.advanceDue) throw invalid("Advance collected cannot exceed the advance due.");
+  if (advancePaid + remainingPaid > order.total) throw invalid("Payments cannot exceed the order total.");
+  if (refunded > advancePaid + remainingPaid) throw invalid("Refunds cannot exceed collected payments.");
+  return next;
+}
+function orderSummary(order) {
+  const collected = order.advancePaid + order.remainingPaid;
+  return { ...order, collectedAmount: collected, balanceDue: Math.max(0, order.total - collected + order.refunded) };
+}
+module.exports = { calculateCatalogueOrder, calculateCustomCakeOrder, reserveCatalogueStock, paymentUpdate, orderSummary, flavourRates, shapeSurcharge };

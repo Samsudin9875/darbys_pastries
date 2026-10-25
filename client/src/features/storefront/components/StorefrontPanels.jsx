@@ -22,7 +22,7 @@ function StorefrontPanels({
   signOut,
   clerkEnabled,
 }) {
-  const [checkout, setCheckout] = useState({ name: "", phone: "" });
+  const [checkout, setCheckout] = useState({ name: "", phone: "", deliveryType: "Home Delivery", address: "", pincode: "" });
   const [checkoutStatus, setCheckoutStatus] = useState("");
   const submitOrder = async () => { try { setCheckoutStatus("Saving order…"); const result = await placeCartOrder(checkout); setCheckoutStatus(`Order ${result.order.orderId} saved. Opening WhatsApp…`); window.open(result.whatsappUrl, "_blank", "noopener"); } catch (error) { setCheckoutStatus(error.message); } };
   const previousFocus = useRef(null);
@@ -110,11 +110,16 @@ function StorefrontPanels({
               </div>
               <div className="cart-summary">
                 <div className="cart-total"><span>Total</span><strong>{rupees(cartTotal)}</strong></div>
-                <input className="cart-checkout-input" value={checkout.name} onChange={(e) => setCheckout({ ...checkout, name: e.target.value })} placeholder="Your name" maxLength="120" />
-                <input className="cart-checkout-input" value={checkout.phone} onChange={(e) => setCheckout({ ...checkout, phone: e.target.value })} placeholder="10-digit WhatsApp number" inputMode="tel" maxLength="14" />
-                <button type="button" className="btn btn-primary" onClick={submitOrder}>Save order &amp; WhatsApp</button>
+                <div className="cart-checkout-head"><span>Guest checkout</span><p>No login required. We will save your request before opening WhatsApp.</p></div>
+                <div className="cart-checkout-grid">
+                  <label><span>Full name</span><input className="cart-checkout-input" value={checkout.name} onChange={(e) => setCheckout({ ...checkout, name: e.target.value })} placeholder="Enter your name" maxLength="120" autoComplete="name" /></label>
+                  <label><span>WhatsApp number</span><input className="cart-checkout-input" value={checkout.phone} onChange={(e) => setCheckout({ ...checkout, phone: e.target.value })} placeholder="10-digit mobile number" inputMode="tel" maxLength="14" autoComplete="tel" /></label>
+                </div>
+                <fieldset className="cart-delivery-choice"><legend>How would you like to receive your order?</legend><label><input type="radio" name="cartDeliveryType" checked={checkout.deliveryType === "Home Delivery"} onChange={() => setCheckout({ ...checkout, deliveryType: "Home Delivery" })} /> Home delivery</label><label><input type="radio" name="cartDeliveryType" checked={checkout.deliveryType === "Store Pickup"} onChange={() => setCheckout({ ...checkout, deliveryType: "Store Pickup" })} /> Store pickup</label></fieldset>
+                {checkout.deliveryType === "Home Delivery" && <div className="cart-checkout-grid"><label className="cart-checkout-wide"><span>Delivery address</span><textarea className="cart-checkout-input" value={checkout.address} onChange={(e) => setCheckout({ ...checkout, address: e.target.value })} placeholder="House / flat, street, area and landmark" maxLength="500" autoComplete="street-address" /></label><label><span>Pincode</span><input className="cart-checkout-input" value={checkout.pincode} onChange={(e) => setCheckout({ ...checkout, pincode: e.target.value.replace(/\D/g, "") })} placeholder="6-digit pincode" inputMode="numeric" maxLength="6" autoComplete="postal-code" /></label></div>}
+                <button type="button" className="btn btn-primary" onClick={submitOrder}>Save request &amp; continue to WhatsApp</button>
                 {checkoutStatus && <p className="cart-note" role="status">{checkoutStatus}</p>}
-                <p className="cart-note">Final availability, design charges and pickup details are confirmed by the bakery.</p>
+                <p className="cart-note">Final availability, delivery charge and pickup/delivery timing are confirmed by the bakery on WhatsApp.</p>
               </div>
             </>
           ) : (

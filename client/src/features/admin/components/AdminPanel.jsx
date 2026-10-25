@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { useAuthToken } from "../../../app/authTokenContext";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuthToken } from "../../../app/authToken";
 import { labels } from "../../menu/data/menuData";
+import { apiUrl } from "../../../utils/apiUrl";
 const tabs = [
   "Dashboard",
   "Products",
@@ -73,19 +74,19 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
     [page, setPage] = useState(1),
     [draft, setDraft] = useState(hero),
     [categories, setCategories] = useState(defaultCategories);
-  const api = async (path, opts = {}) =>
-    fetch(path, {
+  const api = useCallback(async (path, opts = {}) =>
+    fetch(apiUrl(path), {
       ...opts,
       headers: { Authorization: `Bearer ${await token()}`, ...opts.headers },
-    });
-  const load = async () => {
+    }), [token]);
+  const load = useCallback(async () => {
     const [p, d] = await Promise.all([
       api("/api/admin/products"),
       api("/api/admin/dashboard"),
     ]);
     if (p.ok) setItems((await p.json()).data);
     if (d.ok) setStats((await d.json()).data);
-  };
+  }, [api]);
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -104,7 +105,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
       }
     })();
     return () => (mounted = false);
-  }, []);
+  }, [api, load]);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -116,7 +117,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
       api("/api/orders/admin")
         .then((r) => (r.ok ? r.json() : null))
         .then((x) => x && setOrders(x.data || []));
-  }, [tab]);
+  }, [api, tab]);
   const filtered = useMemo(
       () =>
         items.filter(

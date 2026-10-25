@@ -11,10 +11,27 @@ const siteSettingsRoutes = require("./modules/site-settings/site-settings.routes
 const clerkWebhooksRoutes = require("./modules/webhooks/clerk-webhooks.routes");
 const notFound = require("./middleware/not-found");
 const errorHandler = require("./middleware/error-handler");
-const { nodeEnv } = require("./config/env");
+const { nodeEnv, clientOrigins } = require("./config/env");
 
 const app = express();
 app.disable("x-powered-by");
+app.use((request, response, next) => {
+  const origin = request.get("Origin");
+  if (!origin) return next();
+  if (!clientOrigins.includes(origin)) {
+    const error = new Error("This origin is not allowed to access the API.");
+    error.status = 403;
+    error.code = "cors_origin_forbidden";
+    return next(error);
+  }
+  response.setHeader("Access-Control-Allow-Origin", origin);
+  response.setHeader("Vary", "Origin");
+  response.setHeader("Access-Control-Allow-Credentials", "true");
+  response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  if (request.method === "OPTIONS") return response.sendStatus(204);
+  return next();
+});
 app.use(clerkMiddleware());
 app.use("/api/webhooks/clerk", express.raw({ type: "application/json" }), clerkWebhooksRoutes);
 app.use((request, response, next) => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { allProducts, bestSellerNames, labels } from "../data/menuData";
+import { apiUrl } from "../../../utils/apiUrl";
 
 export default function useMenuCatalog({ activeCategory, activeFilter, query }) {
   const [apiProducts, setApiProducts] = useState(null);
@@ -10,7 +11,7 @@ export default function useMenuCatalog({ activeCategory, activeFilter, query }) 
 
     async function loadCatalogue() {
       try {
-        const response = await fetch("/api/products", { signal: controller.signal, cache: "no-store" });
+        const response = await fetch(apiUrl("/api/products"), { signal: controller.signal, cache: "no-store" });
         if (!response.ok) throw new Error(`Catalogue request failed with ${response.status}`);
         const payload = await response.json();
         if (!Array.isArray(payload?.data)) throw new Error("Catalogue response is invalid");

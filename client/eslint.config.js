@@ -16,7 +16,11 @@ export default [
         document: "readonly",
         console: "readonly",
         fetch: "readonly",
-        AbortController: "readonly"
+        AbortController: "readonly",
+        URL: "readonly",
+        Image: "readonly",
+        File: "readonly",
+        FormData: "readonly"
       }
     },
     plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
