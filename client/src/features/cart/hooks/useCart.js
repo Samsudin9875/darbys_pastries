@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useContext } from "react";
 
 import { rupees } from "../../../utils/storefrontUtils";
+import { StorefrontStateContext } from "../../storefront/StorefrontStateContext";
 
 export default function useCart() {
-  const [cart, setCart] = useState([]);
+  const state = useContext(StorefrontStateContext);
+  if (!state) throw new Error("useCart must be used within StorefrontStateProvider.");
+  const { cart, setCart } = state;
+  const itemKey = (item) => item.cartId || `${item.category || "product"}:${item.name}:${item.variantId || item.weight || "default"}`;
+  const sameItem = (first, second) => itemKey(first) === itemKey(second);
 
   const addToCart = (item) => {
     setCart((current) => {
-      const existing = current.find(
-        (entry) => entry.name === item.name && entry.weight === item.weight && entry.category === item.category,
-      );
+      const existing = current.find((entry) => sameItem(entry, item));
 
       if (existing) {
         return current.map((entry) =>
-          entry.name === item.name && entry.weight === item.weight && entry.category === item.category
+          sameItem(entry, item)
             ? { ...entry, quantity: entry.quantity + 1 }
             : entry,
         );
@@ -26,7 +29,7 @@ export default function useCart() {
   const updateCartQuantity = (item, delta) => {
     setCart((current) =>
       current.flatMap((entry) => {
-        if (entry.name !== item.name || entry.weight !== item.weight || entry.category !== item.category) {
+        if (!sameItem(entry, item)) {
           return [entry];
         }
         const nextQty = entry.quantity + delta;

@@ -8,7 +8,11 @@
     "dev": "node --watch src/server.js",
     "test": "node --test",
     "seed:catalog": "node src/scripts/seed-catalog.mjs",
+    "migrate:admin-categories": "node src/scripts/migrate-gift-categories.mjs",
+    "migrate:gift-categories": "node src/scripts/migrate-gift-categories.mjs",
     "migrate:catalog-images": "node src/scripts/migrate-catalog-images.mjs",
+    "migrate:product-taxonomy": "node src/scripts/migrate-product-taxonomy.mjs",
+    "rollback:product-taxonomy": "node src/scripts/rollback-product-taxonomy.mjs",
     "reset:image-library": "node src/scripts/reset-image-library.js"
   },
   "dependencies": {

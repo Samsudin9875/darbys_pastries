@@ -16,9 +16,16 @@ const { nodeEnv, clientOrigins } = require("./config/env");
 const app = express();
 app.disable("x-powered-by");
 app.use((request, response, next) => {
-  const origin = request.get("Origin");
+  const origin = request.get("Origin")?.replace(/\/+$/, "");
   if (!origin) return next();
-  if (!clientOrigins.includes(origin)) {
+  const isLocalDevelopmentOrigin = nodeEnv !== "production" && /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin);
+  const isConfiguredOrigin = clientOrigins.some((allowedOrigin) => {
+    if (allowedOrigin === origin) return true;
+    if (!allowedOrigin.includes("*")) return false;
+    const expression = `^${allowedOrigin.replace(/[|\\{}()[\]^$+?.]/g, "\\$&").replace(/\*/g, "[^.]+")}$`;
+    return new RegExp(expression, "i").test(origin);
+  });
+  if (!isConfiguredOrigin && !isLocalDevelopmentOrigin) {
     const error = new Error("This origin is not allowed to access the API.");
     error.status = 403;
     error.code = "cors_origin_forbidden";

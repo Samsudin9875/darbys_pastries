@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useContext } from "react";
+import { StorefrontStateContext } from "../../storefront/StorefrontStateContext";
 
 export default function useWishlist() {
-  const [wishlist, setWishlist] = useState([]);
+  const state = useContext(StorefrontStateContext);
+  if (!state) throw new Error("useWishlist must be used within StorefrontStateProvider.");
+  const { wishlist, setWishlist } = state;
 
   const toggleWishlist = (item) => {
     setWishlist((current) => {

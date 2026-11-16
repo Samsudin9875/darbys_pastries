@@ -1,11 +1,93 @@
 export const labels = {
+  cakes: "Cakes",
   classic: "Classic Cakes",
-  chocolate: "Chocolate & Truffle Cakes",
-  fruit: "Fruit & Special Cakes",
+  chocolate: "Chocolate Cakes",
+  fruit: "Fruit Cakes",
   special: "Premium & Special Cakes",
-  custom: "Photo & Custom Cakes",
-  desserts: "Small Desserts",
+  photo: "Photo Cakes",
+  desserts: "Desserts",
+  custom: "Custom Cake",
+  flowers: "Flowers",
+  chocolates: "Chocolates",
+  accessories: "Cake Accessories",
+  "gift-hampers": "Gift Hampers",
 };
+
+export const mainCategoryOptions = [
+  ["cakes", "Cakes"],
+  ["flowers", "Flowers"],
+  ["chocolates", "Chocolates"],
+  ["accessories", "Cake Accessories"],
+  ["gift-hampers", "Gift Hampers"],
+];
+
+export const cakeSubcategoryOptions = [
+  ["classic", "Classic Cakes"],
+  ["chocolate", "Chocolate Cakes"],
+  ["fruit", "Fruit Cakes"],
+  ["special", "Premium & Special Cakes"],
+  ["photo", "Photo Cakes"],
+  ["desserts", "Desserts"],
+  ["custom", "Custom Cake"],
+];
+
+export const cakeSizeOptions = [
+  ["500 g", 500],
+  ["1 kg", 1000],
+  ["1.5 kg", 1500],
+  ["2 kg", 2000],
+  ["2.5 kg", 2500],
+  ["3 kg", 3000],
+];
+
+export const occasionOptions = [
+  ["birthday", "Birthday"],
+  ["anniversary", "Anniversary"],
+  ["baby-shower", "Baby Shower"],
+  ["festival", "Festival"],
+  ["other-special-occasions", "Other Special Occasions"],
+];
+
+export const themeOptions = [
+  ["avengers", "Avengers"],
+  ["sonic", "Sonic"],
+  ["doraemon", "Doraemon"],
+  ["tom-jerry", "Tom & Jerry"],
+  ["barbie", "Barbie"],
+  ["jungle-safari", "Jungle Safari"],
+  ["other-themes", "Other themes"],
+];
+
+export const mainCategoryForLegacyKey = (key) =>
+  ["flowers", "chocolates", "accessories", "gift-hampers"].includes(key) ? key : "cakes";
+
+export const cakeSubcategoryForLegacyKey = (key) => ({
+  classic: "classic",
+  chocolate: "chocolate",
+  fruit: "fruit",
+  special: "special",
+  custom: "photo",
+  photo: "photo",
+  desserts: "desserts",
+}[key] || "");
+
+export const defaultCakeMenuGroups = [
+  {
+    id: "cakes",
+    title: "Cake Categories",
+    items: [
+      { id: "classic", label: "Classic Cakes", action: "classic" },
+      { id: "chocolate", label: "Chocolate Cakes", action: "chocolate" },
+      { id: "fruit", label: "Fruit Cakes", action: "fruit" },
+      { id: "special", label: "Premium & Special Cakes", action: "special" },
+      { id: "photo", label: "Photo Cakes", action: "photo" },
+      { id: "desserts", label: "Desserts", action: "desserts" },
+      { id: "custom", label: "Custom Cake", action: "custom" },
+    ],
+  },
+];
+
+export const mergeCakeMenuGroups = () => defaultCakeMenuGroups.map((group) => ({ ...group }));
 
 // Existing rates are retained where the flavour already existed. Update final
 // pricing later from the Admin panel when the rate card is confirmed.

@@ -1,6 +1,7 @@
 const { clerkClient, getAuth } = require("@clerk/express");
 const User = require("../models/user.model");
 const { adminEmail } = require("../config/env");
+const matchesAdminEmail = require("../utils/admin-email");
 
 function unauthorized(next) {
   const error = new Error("Authentication is required.");
@@ -27,13 +28,15 @@ async function requireAuth(request, _response, next) {
     const { isAuthenticated, userId } = getAuth(request);
     if (!isAuthenticated || !userId) return unauthorized(next);
 
-    const profile = getUserProfile(await clerkClient.users.getUser(userId));
+    const clerkUser = await clerkClient.users.getUser(userId);
+    const profile = getUserProfile(clerkUser);
+    const isAdmin = matchesAdminEmail(clerkUser, adminEmail);
     const applicationUser = await User.findOneAndUpdate(
       { clerkUserId: userId },
-      { $set: { ...profile, role: adminEmail && profile.email === adminEmail ? "admin" : "customer" }, $setOnInsert: { clerkUserId: userId } },
+      { $set: { ...profile, role: isAdmin ? "admin" : "customer" }, $setOnInsert: { clerkUserId: userId } },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
     );
-    request.authenticatedUser = { clerkUserId: userId };
+    request.authenticatedUser = { clerkUserId: userId, isAdmin };
     request.applicationUser = applicationUser;
     return next();
   } catch (error) {

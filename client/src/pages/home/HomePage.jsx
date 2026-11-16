@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import ProductCard from "../../features/menu/components/ProductCard";
-import { getImageFor } from "../../features/menu/data/menuData";
+import { defaultCakeMenuGroups, getImageFor, mergeCakeMenuGroups, mainCategoryOptions, cakeSubcategoryOptions, occasionOptions } from "../../features/menu/data/menuData";
 import useMenuCatalog from "../../features/menu/hooks/useMenuCatalog";
 import StorefrontPanels from "../../features/storefront/components/StorefrontPanels";
 import AdminPanel from "../../features/admin/components/AdminPanel";
@@ -10,34 +11,132 @@ import "../../features/storefront/styles/storefront-panels.css";
 import useCart from "../../features/cart/hooks/useCart";
 import useWishlist from "../../features/wishlist/hooks/useWishlist";
 import useCustomCakeBuilder, { flavourRates, shapeSurcharge } from "../../features/custom-cakes/hooks/useCustomCakeBuilder";
-import { asset, rupees, whatsappOrderLink } from "../../utils/storefrontUtils";
+import { asset, responsiveImageSrcSet, rupees, whatsappOrderLink } from "../../utils/storefrontUtils";
 import { apiUrl } from "../../utils/apiUrl";
+import { policyPages } from "../PolicyPage";
 
 const categoryDefaults = [
   { id: "classic", label: "Classic Cakes", detail: "Black Forest Classic, White Forest, Vanilla Truffle", image: "", action: "classic" },
   { id: "chocolate", label: "Chocolate Cakes", detail: "Double Chocolate, Choco Chips, Choco Truffle, Choco Oreo Forest, Belgium Chocolate", image: "", action: "chocolate" },
   { id: "fruit", label: "Fruit Cakes", detail: "Pineapple, Mango, Strawberry, Blueberry, Black Currant", image: "", action: "fruit" },
   { id: "special", label: "Premium & Special Cakes", detail: "Rasmalai, Irish Coffee, Caramel Butterscotch, Dry Fruit, Mango Almond, Honey Almond", image: "", action: "special" },
-  { id: "custom", label: "Photo Cakes", detail: "Photo cakes and custom designs", image: "", action: "custom" },
+  { id: "photo", label: "Photo Cakes", detail: "Photo cakes and custom designs", image: "", action: "photo" },
   { id: "desserts", label: "Desserts", detail: "Donuts, Choco Lava, Cup Cakes, Cake Pops, Brownies, Apple Pie", image: "", action: "desserts" },
 ];
+const giftCategoryDefaults = [
+  { id: "flowers", label: "Flowers", detail: "Fresh blooms for every celebration", image: "", action: "flowers" },
+  { id: "chocolates", label: "Chocolates", detail: "Sweet gifts, ready to share", image: "", action: "chocolates" },
+  { id: "accessories", label: "Cake Accessories", detail: "Birthday essentials and finishing touches", image: "", action: "accessories" },
+  { id: "gift-hampers", label: "Gift Hampers", detail: "Curated celebration hampers, ready to gift", image: "", action: "gift-hampers" },
+];
+const categoryImageFallbacks = {
+  classic: "9c4c74910c48.jpg",
+  chocolate: "101920fbaa29.jpg",
+  fruit: "2a95b9ea83e2.jpg",
+  special: "2a95b9ea83e2.jpg",
+  photo: "custom-cake-summary.jpg",
+  desserts: "101920fbaa29.jpg",
+};
+const giftCategoryImageFallbacks = {
+  flowers: "2a95b9ea83e2.jpg",
+  chocolates: "101920fbaa29.jpg",
+  accessories: "9c4c74910c48.jpg",
+  "gift-hampers": "custom-cake-summary.jpg",
+};
+const defaultReviewHighlights = [
+  { quote: "A wide choice of familiar flavours, with eggless and custom-design options when the occasion calls for something personal.", name: "Birthday cake order", place: "KR Puram, Bengaluru", rating: 5 },
+  { quote: "From a half-kilo cake to a larger celebration centrepiece, it is easy to find the right size and flavour.", name: "Family celebration", place: "Bengaluru", rating: 5 },
+  { quote: "Indian-inspired flavours such as Rasmalai sit alongside rich chocolate favourites for a menu with range.", name: "Flavour discovery", place: "KR Puram, Bengaluru", rating: 5 },
+];
+const fallbackOnImageError = (event, fallback) => {
+  if (event.currentTarget.getAttribute("src") !== fallback) {
+    event.currentTarget.src = fallback;
+  }
+};
 
 function HomePage() {
+  const { category: routeCategory } = useParams();
+  const navigate = useNavigate();
   const { isLoaded: isAuthLoaded, isSignedIn, getToken } = useAuth();
   const [hero, setHero] = useState({ eyebrow: "Handcrafted with love", title: "Freshly Baked Cakes For Every Celebration", description: "Choose from our client-approved cake flavours, desserts, flowers and chocolates.", badge: "Starting from ₹350", image: "101920fbaa29.jpg", imageSecond: "9c4c74910c48.jpg", imageThird: "2a95b9ea83e2.jpg" });
   const [categories, setCategories] = useState(categoryDefaults);
+  const [giftCategories, setGiftCategories] = useState(giftCategoryDefaults);
+  const [cakeMenuGroups, setCakeMenuGroups] = useState(defaultCakeMenuGroups);
+  const [giftsVisible, setGiftsVisible] = useState(true);
   const [customCakeSummaryImage, setCustomCakeSummaryImage] = useState("/images/custom-cake-summary.jpg");
-
-  const [activeCategory] = useState("classic");
-  const [activeFilter, setActiveFilter] = useState({ kind: "bestseller", label: "Featured Cakes" });
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => new window.URLSearchParams(window.location.search).get("search") || "");
+  const [focusedBrowseView, setFocusedBrowseView] = useState(() => {
+    const params = new window.URLSearchParams(window.location.search);
+    return window.location.pathname === "/custom-cake"
+      ? "custom"
+      : routeCategory || ["mainCategory", "cakeSubcategory", "occasion", "theme", "hasOccasionOrTheme", "minPrice", "maxPrice", "search", "sort", "available"].some((key) => params.has(key))
+      ? "products"
+      : window.location.hash === "#shop-by-occasion" ? "occasion" : "home";
+  });
+  const [showAllProducts, setShowAllProducts] = useState(() => {
+    const params = new window.URLSearchParams(window.location.search);
+    return Boolean(routeCategory) || ["mainCategory", "cakeSubcategory", "occasion", "theme", "hasOccasionOrTheme", "minPrice", "maxPrice", "search", "sort", "available"].some((key) => params.has(key));
+  });
+  const [page, setPage] = useState(() => Math.max(1, Number(new window.URLSearchParams(window.location.search).get("page")) || 1));
+  const [catalogFilters, setCatalogFilters] = useState(() => {
+    const params = new window.URLSearchParams(window.location.search);
+    return {
+      mainCategory: routeCategory || params.get("mainCategory") || "",
+      cakeSubcategory: params.get("cakeSubcategory") || "",
+      occasion: params.get("occasion") || "",
+      theme: params.get("theme") || "",
+      hasOccasionOrTheme: params.get("hasOccasionOrTheme") || "",
+      minPrice: params.get("minPrice") || "",
+      maxPrice: params.get("maxPrice") || "",
+      sort: params.get("sort") || "name",
+      available: params.get("available") || "",
+    };
+  });
+  const [themeOptions, setThemeOptions] = useState([]);
+  const [sectionVisibility, setSectionVisibility] = useState({ bestSellers: true, occasionTheme: true, addOns: true, reviews: true });
+  const [reviewHighlights, setReviewHighlights] = useState(defaultReviewHighlights);
+  const [featuredAddOns, setFeaturedAddOns] = useState(null);
+  const isCustomCakePage = window.location.pathname === "/custom-cake";
   const [panel, setPanel] = useState("");
   const [dialog, setDialog] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [customerCarePage, setCustomerCarePage] = useState("");
   const [canAccessAdmin, setCanAccessAdmin] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(0);
-  const visibleProducts = useMenuCatalog({ activeCategory, activeFilter, query });
+  const isGiftCategoryActive = (id) => giftCategories.find((item) => item.id === id)?.active !== false;
+  const showFlowersAndChocolates = ["flowers", "chocolates", "accessories", "gift-hampers"].some(isGiftCategoryActive);
+  const isInitialBestSellers = !showAllProducts && !query && !Object.values(catalogFilters).some((value) => value && value !== "name");
+  const activeFilters = {
+    ...Object.fromEntries(Object.entries(catalogFilters).filter(([key, value]) => value && !(key === "sort" && value === "name"))),
+    ...(isInitialBestSellers ? { featured: "true" } : {}),
+    ...(query.trim() ? { search: query.trim() } : {}),
+  };
+  const catalogResult = useMenuCatalog({ filters: activeFilters, limit: showAllProducts ? 24 : 6, page });
+  const addOnResult = useMenuCatalog({
+    filters: { mainCategory: "flowers,chocolates,accessories,gift-hampers" },
+    enabled: showFlowersAndChocolates,
+    limit: 40,
+  });
+  const occasionProductsResult = useMenuCatalog({
+    filters: { mainCategory: "cakes", hasOccasionOrTheme: "true" },
+    enabled: sectionVisibility.occasionTheme || focusedBrowseView === "occasion",
+    limit: 50,
+  });
+  const visibleProducts = catalogResult.products;
+  const addOnProducts = ["flowers", "chocolates", "accessories", "gift-hampers"].flatMap((category) => (
+    isGiftCategoryActive(category) && (category !== "gift-hampers" || giftsVisible)
+      ? featuredAddOns
+        ? addOnResult.products.filter((product) => product.mainCategory === category && (featuredAddOns[category] || []).includes(product.id))
+        : addOnResult.products.filter((product) => product.mainCategory === category).slice(0, 2)
+      : []
+  ));
+  const themeNames = themeOptions;
+  const occasionPreviews = occasionProductsResult.products
+    .filter((product) => product.occasionIds.length > 0 || product.themes.length > 0)
+    .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
+    .slice(0, 4)
+    .map((product) => ({ product }));
   const {
     cart,
     cartCount,
@@ -67,19 +166,80 @@ function HomePage() {
 
   useEffect(() => {
     const params = new window.URLSearchParams(window.location.search);
-    if (params.get("account") !== "1") return;
+    if (params.get("account") === "1") setPanel("account");
+    if (params.get("cart") === "1") setPanel("cart");
+    if (params.has("account") || params.has("cart")) {
+      params.delete("account");
+      params.delete("cart");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`);
+    }
+  }, []);
 
-    setPanel("account");
-    window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+  useEffect(() => {
+    if (window.location.pathname !== "/custom-cake") return undefined;
+    const timer = window.setTimeout(() => document.getElementById("custom")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     fetch(apiUrl("/api/site-settings"), { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((payload) => {
-      if (payload?.data?.hero) setHero((current) => ({ ...current, ...payload.data.hero }));
+      if (payload?.data?.hero) setHero((current) => ({
+        ...current,
+        ...payload.data.hero,
+        // Older saved settings may contain an empty image value. Do not let
+        // that hide the bundled photography used by the live homepage.
+        image: payload.data.hero.image || current.image,
+        imageSecond: payload.data.hero.imageSecond || current.imageSecond,
+        imageThird: payload.data.hero.imageThird || current.imageThird,
+      }));
       if (payload?.data?.customCakeSummaryImage) setCustomCakeSummaryImage(payload.data.customCakeSummaryImage);
-      if (Array.isArray(payload?.data?.categories)) setCategories(payload.data.categories);
+      if (Array.isArray(payload?.data?.categories)) setCategories(categoryDefaults.map((fallback) => {
+        const saved = payload.data.categories.find((item) => item.id === fallback.id || (fallback.id === "photo" && item.id === "custom")) || {};
+        return { ...fallback, ...saved, id: fallback.id, action: saved.action === "custom" ? "photo" : (saved.action || fallback.action), image: saved.image || fallback.image };
+      }));
+      if (Array.isArray(payload?.data?.cakeMenuGroups)) setCakeMenuGroups(mergeCakeMenuGroups(payload.data.cakeMenuGroups));
+      if (Array.isArray(payload?.data?.giftCategories)) setGiftCategories(giftCategoryDefaults.map((fallback) => ({
+        ...fallback,
+        ...(payload.data.giftCategories.find((item) => item.id === fallback.id) || {}),
+      })));
+      if (typeof payload?.data?.giftsVisible === "boolean") setGiftsVisible(payload.data.giftsVisible);
+      if (payload?.data?.sectionVisibility) setSectionVisibility((current) => ({ ...current, ...payload.data.sectionVisibility }));
+      if (Array.isArray(payload?.data?.reviewHighlights)) setReviewHighlights(payload.data.reviewHighlights.slice(0, 3));
+      if (payload?.data?.featuredProducts) setFeaturedAddOns(payload.data.featuredProducts);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(apiUrl("/api/products/facets"), { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || "Product filters could not be loaded.");
+        setThemeOptions((payload.data?.themes || []).map((item) => item.value).filter(Boolean));
+      })
+      .catch((error) => { if (error.name !== "AbortError") setThemeOptions([]); });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const params = new window.URLSearchParams();
+    Object.entries(catalogFilters).forEach(([key, value]) => {
+      if (value && !(key === "sort" && value === "name")) params.set(key, value);
+    });
+    if (query.trim()) params.set("search", query.trim());
+    if (showAllProducts && page > 1) params.set("page", String(page));
+    const next = `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", next);
+  }, [catalogFilters, query, showAllProducts, page]);
+
+  useEffect(() => {
+    if (!routeCategory || !giftCategories.some((item) => item.action === routeCategory)) return;
+    setCatalogFilters((current) => ({ ...current, mainCategory: routeCategory }));
+    setFocusedBrowseView("products");
+    setShowAllProducts(true);
+    const timer = window.setTimeout(() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    return () => window.clearTimeout(timer);
+  }, [routeCategory, giftCategories]);
 
   useEffect(() => {
     let active = true;
@@ -97,22 +257,132 @@ function HomePage() {
 
   const openMenuToFilter = (filter) => {
     if (filter.kind === "custom") {
-      setMobileNavOpen(false);
-      document.getElementById("custom")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.location.assign("/custom-cake");
       return;
     }
-    setActiveFilter(filter);
-    setQuery("");
+    setFocusedBrowseView("products");
+    const field = {
+      category: "mainCategory",
+      subcategory: "cakeSubcategory",
+      occasion: "occasion",
+      theme: "theme",
+    }[filter.kind];
+    if (filter.kind === "all" || filter.kind === "bestseller") {
+      setCatalogFilters({ mainCategory: "", cakeSubcategory: "", occasion: "", theme: "", hasOccasionOrTheme: "", minPrice: "", maxPrice: "", sort: "name", available: "" });
+      setQuery("");
+    } else if (field) {
+      setCatalogFilters((current) => ({
+        ...current,
+        ...(field === "cakeSubcategory" || field === "occasion" || field === "theme" ? { mainCategory: "cakes" } : {}),
+        hasOccasionOrTheme: "",
+        [field]: filter.value,
+      }));
+    }
+    setShowAllProducts(filter.kind !== "bestseller");
+    setPage(1);
     setMobileNavOpen(false);
-    document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (routeCategory) navigate("/", { replace: true });
+    window.setTimeout(() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const scrollToSection = (sectionId) => {
+    setMobileNavOpen(false);
+    if (sectionId === "shop-by-occasion") {
+      setFocusedBrowseView("occasion");
+      setCatalogFilters({ mainCategory: "", cakeSubcategory: "", occasion: "", theme: "", hasOccasionOrTheme: "", minPrice: "", maxPrice: "", sort: "name", available: "" });
+      setQuery("");
+      setShowAllProducts(false);
+      if (routeCategory) navigate("/", { replace: true });
+      window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${sectionId}`);
+      window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+      return;
+    }
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const browseAllCakes = () => {
-    setActiveFilter({ kind: "all", label: "All Cakes" });
-    setQuery("");
-    document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setFocusedBrowseView("products");
+    setCatalogFilters((current) => ({ ...current, mainCategory: "cakes", cakeSubcategory: "", hasOccasionOrTheme: "" }));
+    setShowAllProducts(true);
+    setPage(1);
+    if (routeCategory) navigate("/", { replace: true });
+    window.setTimeout(() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
 
+  const browseAllOccasionThemeCakes = () => {
+    setFocusedBrowseView("products");
+    setCatalogFilters({
+      mainCategory: "cakes",
+      cakeSubcategory: "",
+      occasion: "",
+      theme: "",
+      hasOccasionOrTheme: "true",
+      minPrice: "",
+      maxPrice: "",
+      sort: "name",
+      available: "",
+    });
+    setQuery("");
+    setShowAllProducts(true);
+    setPage(1);
+    if (routeCategory) navigate("/", { replace: true });
+    window.setTimeout(() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const browseAllAddOns = () => {
+    setFocusedBrowseView("products");
+    setCatalogFilters((current) => ({
+      ...current,
+      mainCategory: "flowers,chocolates,accessories,gift-hampers",
+      cakeSubcategory: "",
+      occasion: "",
+      theme: "",
+      hasOccasionOrTheme: "",
+    }));
+    setQuery("");
+    setShowAllProducts(true);
+    setPage(1);
+    if (routeCategory) navigate("/", { replace: true });
+    window.setTimeout(() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const selectCakeMenuItem = (item) => {
+    if (item.action === "custom") {
+      window.location.assign("/custom-cake");
+      return;
+    }
+    openMenuToFilter({ kind: "subcategory", value: item.action, label: item.label });
+  };
+
+  const renderCakeMenuGroups = () => (
+    <div className="cakes-dropdown-groups">
+      {cakeMenuGroups.map((group) => (
+        <section className="cakes-dropdown-group" key={group.id}>
+          <h3>{group.title}</h3>
+          {group.items.map((item) => (
+            <button key={item.id} type="button" onClick={() => selectCakeMenuItem(item)}>{item.label}</button>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+  const renderProductCards = (products, prefix) => (
+    <div className="menu-grid">
+      {products.length ? products.map((product) => (
+        <ProductCard key={`${prefix}-${product.id}`} product={product} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />
+      )) : <div className="empty-menu">No products in this collection yet.</div>}
+    </div>
+  );
+  const renderAddOnSection = () => (
+    <section className="add-ons-section section" id="flowers-chocolates" aria-labelledby="flowersChocolatesTitle">
+      <div className="container">
+        <div className="section-head"><div><p className="eyebrow">Thoughtful finishing touches</p><h2 id="flowersChocolatesTitle">Flowers, Chocolates &amp; Gifts</h2></div><button type="button" className="mobile-section-view-all" onClick={browseAllAddOns}>View All <span aria-hidden="true">→</span></button><p className="lede">Fresh blooms, sweet gifts and celebration essentials.</p></div>
+        <div className="occasion-links add-on-category-links">{giftCategories.filter((category) => isGiftCategoryActive(category.id) && (category.id !== "gift-hampers" || giftsVisible)).map((category) => <button className="btn btn-secondary" type="button" key={category.id} onClick={() => openMenuToFilter({ kind: "category", value: category.action, label: category.label })}>{category.label} · View All</button>)}</div>
+        {addOnProducts.length > 0 && renderProductCards(addOnProducts.slice(0, 8), "add-on")}
+        {!addOnProducts.length && <div className="empty-menu" role={addOnResult.loading ? "status" : undefined}>{addOnResult.loading ? "Loading featured products…" : "Featured products will appear here when available."}</div>}
+      </div>
+    </section>
+  );
 
   const dialogContent = {
     "How to Order": {
@@ -167,7 +437,15 @@ function HomePage() {
           <label className="header-search">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="m16 16 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
             <span>⌕</span>
-            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search cakes, flavours & categories" aria-label="Search by cake name, flavour or category" />
+            <input type="search" value={query} onChange={(event) => {
+              const nextQuery = event.target.value;
+              setQuery(nextQuery);
+              if (nextQuery.trim()) {
+                setFocusedBrowseView("products");
+                setShowAllProducts(true);
+              }
+              setPage(1);
+            }} placeholder="Search by product name" aria-label="Search by product name" />
           </label>
 
           <div className="quick-links" aria-label="Quick actions">
@@ -195,24 +473,18 @@ function HomePage() {
           <div className="container nav-inner">
             <nav className={`nav-links ${mobileNavOpen ? "open" : ""}`} aria-label="Main navigation">
               <div className="mobile-drawer-head"><strong>Browse Darby's</strong><button type="button" onClick={() => setMobileNavOpen(false)}>×</button></div>
-              <div className="nav-item"><a className="nav-link" href="#home" onClick={() => setMobileNavOpen(false)}>Home</a></div>
-              <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "category", value: "classic", label: "Classic Cakes" })}>Classic Cakes</button></div>
-              <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "category", value: "chocolate", label: "Chocolate Cakes" })}>Chocolate Cakes</button></div>
-              <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "category", value: "fruit", label: "Fruit Cakes" })}>Fruit Cakes</button></div>
-              <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "special", label: "Premium & Special Cakes" })}>Premium & Special</button></div>
-              <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "category", value: "desserts", label: "Desserts" })}>Desserts</button></div>
-              <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "custom" })}>Custom Cakes</button></div>
+              <div className="nav-item"><a className="nav-link" href="/" onClick={() => setMobileNavOpen(false)}>Home</a></div>
+              <div className="nav-item cakes-nav"><button type="button" className="nav-link">Cakes <span aria-hidden="true">⌄</span></button><div className="cakes-dropdown">{renderCakeMenuGroups()}</div></div>
+              <div className="nav-item"><button type="button" className="nav-link" onClick={() => scrollToSection("shop-by-occasion")}>Shop by Occasion</button></div>
+              {giftCategories.map((item) => <div className="nav-item" key={item.id}><Link className="nav-link" to={`/category/${item.action}`} onClick={() => setMobileNavOpen(false)}>{item.label}</Link></div>)}
               <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button></div>
               <div className="nav-item"><a className="nav-link" href="#footer-contact" onClick={() => setMobileNavOpen(false)}>Contact</a></div>
             </nav>
             <nav className="legacy-desktop-nav" aria-label="Main navigation">
-              <a href="#home">Home</a>
-              <button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "classic", label: "Classic Cakes" })}>Classic Cakes</button>
-              <button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "chocolate", label: "Chocolate Cakes" })}>Chocolate Cakes</button>
-              <button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "fruit", label: "Fruit Cakes" })}>Fruit Cakes</button>
-              <button type="button" onClick={() => openMenuToFilter({ kind: "special", label: "Premium & Special Cakes" })}>Premium & Special</button>
-              <button type="button" onClick={() => openMenuToFilter({ kind: "category", value: "desserts", label: "Desserts" })}>Desserts</button>
-              <button type="button" onClick={() => openMenuToFilter({ kind: "custom" })}>Custom Cakes</button>
+              <a href="/">Home</a>
+              <div className="cakes-nav"><button type="button">Cakes <span aria-hidden="true">⌄</span></button><div className="cakes-dropdown">{renderCakeMenuGroups()}</div></div>
+              <button type="button" onClick={() => scrollToSection("shop-by-occasion")}>Shop by Occasion</button>
+              {giftCategories.map((item) => <Link key={item.id} to={`/category/${item.action}`}>{item.label}</Link>)}
               <button type="button" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button>
               <a href="#footer-contact">Contact</a>
             </nav>
@@ -220,8 +492,10 @@ function HomePage() {
         </div>
       </header>
 
+      {customerCarePage && <CustomerCareCard slug={customerCarePage} onClose={() => setCustomerCarePage("")} />}
+
       <main>
-        <section className="hero" id="home">
+        {focusedBrowseView === "home" && <section className="hero" id="home">
           <div className="container hero-grid">
             <div className="hero-copy">
               <p className="eyebrow">{hero.eyebrow}</p>
@@ -235,60 +509,80 @@ function HomePage() {
             </div>
             <div className="hero-media">
               <div className="hero-gallery">
-                <figure className="hero-tile hero-tile-main"><img className="hero-photo" src={asset(hero.image)} alt="Rich chocolate celebration cake" decoding="async" fetchPriority="high" /><figcaption>Chocolate Celebration Cake</figcaption></figure>
-                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageSecond)} alt="Black Forest birthday cake" decoding="async" /><figcaption>Birthday Cake</figcaption></figure>
-                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageThird)} alt="Designer cake" decoding="async" /><figcaption>Designer Cake</figcaption></figure>
+                <figure className="hero-tile hero-tile-main"><img className="hero-photo" src={asset(hero.image)} srcSet={responsiveImageSrcSet(asset(hero.image))} sizes="(max-width: 900px) 100vw, 50vw" alt="Rich chocolate celebration cake" decoding="async" fetchPriority="high" /><figcaption>Chocolate Celebration Cake</figcaption></figure>
+                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageSecond)} srcSet={responsiveImageSrcSet(asset(hero.imageSecond))} sizes="(max-width: 900px) 45vw, 20vw" alt="Black Forest birthday cake" decoding="async" /><figcaption>Birthday Cake</figcaption></figure>
+                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageThird)} srcSet={responsiveImageSrcSet(asset(hero.imageThird))} sizes="(max-width: 900px) 45vw, 20vw" alt="Designer cake" decoding="async" /><figcaption>Designer Cake</figcaption></figure>
               </div>
-              <div className="hero-badge">Starting from ₹350</div>
+              <button className="hero-badge" type="button" onClick={browseAllCakes} aria-label="Browse cakes starting from 350 rupees">Starting from ₹350 <span aria-hidden="true">→</span></button>
             </div>
           </div>
-        </section>
+        </section>}
 
-        <section className="usp-section" aria-label="Why choose Darby's Pastries">
-          <div className="container usp-grid">
-            <article className="usp-card"><span className="usp-icon">🚚</span><div><h3>Same Day Delivery</h3><p>Selected cakes delivered across nearby KR Puram areas.</p></div></article>
-            <article className="usp-card"><span className="usp-icon">🎂</span><div><h3>Custom Cakes</h3><p>Made to your theme, colours, message and serving size.</p></div></article>
-            <article className="usp-card"><span className="usp-icon">🥚</span><div><h3>Eggless Available</h3><p>Eggless versions available across the cake menu.</p></div></article>
-            <article className="usp-card"><span className="usp-icon">⭐</span><div><h3>4.8 Customer Rating</h3><p>A locally loved choice for cakes and celebrations.</p></div></article>
-          </div>
-        </section>
-
-        <section className="category-section" aria-labelledby="categoryTitle">
+        {focusedBrowseView === "home" && <section className="category-section" aria-labelledby="categoryTitle">
           <div className="container">
             <div className="section-head"><div><p className="eyebrow">Made for every moment</p><h2 id="categoryTitle">Shop By Category</h2></div><p className="lede">Find the perfect cake for every celebration.</p></div>
             <div className="category-grid">
               {categories.map((category) => (
-                <button key={category.id} className="category-card" type="button" onClick={() => openMenuToFilter(category.action === "custom" ? { kind: "custom" } : category.action === "special" ? { kind: "special", label: category.label } : { kind: "category", value: category.action || "all", label: category.label })}>
-                  {category.image ? <img src={asset(category.image)} alt={category.label} loading="lazy" decoding="async" /> : <span className="category-card-placeholder">Darby's Pastries</span>}
+                <button key={category.id} className="category-card" type="button" onClick={() => openMenuToFilter({ kind: "subcategory", value: category.action || "classic", label: category.label })}>
+                  <img src={asset(category.image || categoryImageFallbacks[category.id] || "101920fbaa29.jpg")} onError={(event) => fallbackOnImageError(event, asset(categoryImageFallbacks[category.id] || "101920fbaa29.jpg"))} alt={category.label} loading="lazy" decoding="async" />
                   <span className="category-card-body"><h3>{category.label}</h3></span>
                 </button>
               ))}
             </div>
           </div>
-        </section>
+        </section>}
 
-        <section className="menu-section section" id="menu">
+        {((focusedBrowseView === "home" && sectionVisibility.bestSellers) || focusedBrowseView === "products") && <section className="menu-section section" id="menu">
           <div className="container">
             <div className="section-head featured-section-head">
-              <div><p className="eyebrow">Customer favourites</p><h2>{activeFilter?.label || "Featured Cakes"}</h2></div>
+              <div><p className="eyebrow">Customer favourites</p><h2>{isInitialBestSellers ? "Best Sellers" : query ? "Search Results" : "Shop Products"}</h2></div>
               <div className="featured-section-actions">
-                <p className="lede">Choose a weight and order directly on WhatsApp.</p>
-                <button type="button" className="browse-all-cakes" onClick={browseAllCakes}>Browse All Cakes <span aria-hidden="true">→</span></button>
+                <p className="lede">{isInitialBestSellers ? "Choose a weight and order directly on WhatsApp." : `${catalogResult.pagination.total} products found`}</p>
+                {!showAllProducts ? <button type="button" className="browse-all-cakes" onClick={() => { setFocusedBrowseView("products"); setCatalogFilters({ mainCategory: "", cakeSubcategory: "", occasion: "", theme: "", hasOccasionOrTheme: "", minPrice: "", maxPrice: "", sort: "name", available: "" }); setShowAllProducts(true); setPage(1); }}>View All <span aria-hidden="true">→</span></button> : <button type="button" className="browse-all-cakes" onClick={browseAllCakes}>Browse All Cakes <span aria-hidden="true">→</span></button>}
               </div>
             </div>
+            {showAllProducts && <div className="catalog-filter-toolbar" aria-label="Product sorting">
+              <label>Sort products<select value={catalogFilters.sort} onChange={(event) => { setCatalogFilters((current) => ({ ...current, sort: event.target.value })); setPage(1); }}><option value="name">Featured</option><option value="price-asc">Price: Low to High</option><option value="price-desc">Price: High to Low</option></select></label>
+            </div>}
+            {catalogResult.error && <p className="empty-menu" role="alert">{catalogResult.error}</p>}
+            {catalogResult.loading && <p className="empty-menu" role="status">Loading products…</p>}
             <div className="menu-grid">
               {visibleProducts.length ? (
                 visibleProducts.map((product) => (
-                  <ProductCard key={`${product.category}-${product.name}`} product={product} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />
+                  <ProductCard key={product.id} product={product} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />
                 ))
               ) : (
-                <div className="empty-menu">No matching products found. Try another search or category.</div>
+                !catalogResult.loading && <div className="empty-menu">No matching products found. Try another search or category.</div>
               )}
             </div>
+            {showAllProducts && catalogResult.pagination.pages > 1 && <div className="admin-pagination" aria-label="Product pages"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</button><span>Page {page} of {catalogResult.pagination.pages}</span><button type="button" disabled={page >= catalogResult.pagination.pages} onClick={() => setPage((current) => current + 1)}>Next</button></div>}
           </div>
-        </section>
+        </section>}
 
-        <section className="custom-banner" id="custom">
+        {((focusedBrowseView === "home" && sectionVisibility.occasionTheme) || focusedBrowseView === "occasion") && <section className="occasion-section section" id="shop-by-occasion" aria-labelledby="occasionTitle">
+          <div className="container">
+            <div className="section-head"><div><p className="eyebrow">Celebrate every moment</p><h2 id="occasionTitle">Shop by Occasion{themeNames.length > 0 ? " & Theme" : ""}</h2></div><p className="lede">Find cakes made for the moments and themes that matter.</p></div>
+            <div className="occasion-discovery">
+              <div className="occasion-discovery-group">
+                <h3>Choose an occasion</h3>
+                <div className="occasion-links">{occasionOptions.map(([value, label]) => <button className="btn btn-secondary" type="button" key={value} onClick={() => openMenuToFilter({ kind: "occasion", value, label })}>{label}</button>)}</div>
+                {occasionProductsResult.error && <p className="empty-menu" role="alert">{occasionProductsResult.error}</p>}
+              </div>
+              {themeNames.length > 0 && <div className="occasion-discovery-group theme-discovery">
+                <h3>Shop by theme</h3>
+                <div className="occasion-links theme-links" aria-label="Shop by theme">{themeNames.map((theme) => <button className="btn btn-secondary" type="button" key={theme} onClick={() => openMenuToFilter({ kind: "theme", value: theme, label: `${theme} Cakes` })}>{theme}</button>)}</div>
+              </div>}
+              {occasionPreviews.length > 0 && <div className="occasion-preview-group">
+                <div className="occasion-preview-heading"><h3>Popular occasion cakes</h3><button type="button" className="browse-all-cakes" onClick={browseAllOccasionThemeCakes}>View All <span aria-hidden="true">→</span></button></div>
+                {renderProductCards(occasionPreviews.map(({ product }) => product), "occasion")}
+              </div>}
+            </div>
+          </div>
+        </section>}
+
+        {sectionVisibility.addOns && focusedBrowseView !== "custom" && renderAddOnSection()}
+
+        {isCustomCakePage && focusedBrowseView === "custom" && <section className="custom-banner" id="custom">
           <div className="container">
             <div className="custom-builder-head"><div><p className="eyebrow">Build it your way</p><h2>Custom Cake Builder</h2></div><div className="custom-builder-meta"><p className="lede">Choose every detail, see the estimate update instantly, then send one complete order request on WhatsApp.</p></div></div>
             {builder.legacyBuilder === true ? (<form className="custom-builder-shell" onSubmit={submitBuilder} noValidate>
@@ -386,24 +680,30 @@ function HomePage() {
                 <section className="builder-panel"><h3>Customer details</h3><div className="builder-form-grid"><div className="builder-field"><label htmlFor="customCustomerName">Customer name</label><input id="customCustomerName" value={builder.customerName} onChange={(e) => updateBuilderField("customerName", e.target.value)} /></div><div className="builder-field"><label htmlFor="customPhone">WhatsApp / mobile number</label><input id="customPhone" value={builder.phone} onChange={(e) => updateBuilderField("phone", e.target.value)} type="tel" inputMode="tel" placeholder="10-digit mobile number" /></div></div></section>
                 <div className="builder-actions"><button type="submit" className="btn btn-primary builder-submit">Send order on WhatsApp →</button></div><p className="builder-status" role="status" aria-live="polite">{builderStatus}</p>
               </div>
-              <aside className="builder-summary" aria-label="Live custom cake price estimate"><div className="builder-summary-sticky"><p className="builder-summary-kicker">Order summary</p><h3>Your cake summary</h3><img className="custom-summary-cake-image" src={customCakeSummaryImage} alt="Pink strawberry celebration cake" /><div className="builder-price"><span>Estimated total</span><strong>{rupees(estimate)}</strong></div><dl className="builder-breakdown"><div><dt>Occasion</dt><dd>{builder.occasion}</dd></div><div><dt>Flavour</dt><dd>{builder.flavour}</dd></div><div><dt>Weight</dt><dd>{builder.weight === 0.5 ? "500 g" : `${builder.weight} kg`}</dd></div><div><dt>Egg preference</dt><dd>{builder.eggPreference}</dd></div><div><dt>Shape</dt><dd>{builder.shape}</dd></div>{builder.cakeMessage && <div><dt>Message</dt><dd>{builder.cakeMessage}</dd></div>}<div><dt>Delivery</dt><dd>{builder.deliveryType}</dd></div>{builder.deliveryTime && <div><dt>Time</dt><dd>{builder.deliveryDate} · {builder.deliveryTime}</dd></div>}<div><dt>Customer</dt><dd>{builder.customerName || "—"}</dd></div></dl><div className="advance-strip"><span>Estimated 50% advance</span><strong>{rupees(advanceAmount)}</strong></div><p className="estimate-note">Final price and delivery charges will be confirmed by Darby's Pastries.</p></div></aside>
+              <aside className="builder-summary" aria-label="Live custom cake price estimate"><div className="builder-summary-sticky"><p className="builder-summary-kicker">Order summary</p><h3>Your cake summary</h3><img className="custom-summary-cake-image" src={asset(customCakeSummaryImage)} alt="Pink strawberry celebration cake" /><div className="builder-price"><span>Estimated total</span><strong>{rupees(estimate)}</strong></div><dl className="builder-breakdown"><div><dt>Occasion</dt><dd>{builder.occasion}</dd></div><div><dt>Flavour</dt><dd>{builder.flavour}</dd></div><div><dt>Weight</dt><dd>{builder.weight === 0.5 ? "500 g" : `${builder.weight} kg`}</dd></div><div><dt>Egg preference</dt><dd>{builder.eggPreference}</dd></div><div><dt>Shape</dt><dd>{builder.shape}</dd></div>{builder.cakeMessage && <div><dt>Message</dt><dd>{builder.cakeMessage}</dd></div>}<div><dt>Delivery</dt><dd>{builder.deliveryType}</dd></div>{builder.deliveryTime && <div><dt>Time</dt><dd>{builder.deliveryDate} · {builder.deliveryTime}</dd></div>}<div><dt>Customer</dt><dd>{builder.customerName || "—"}</dd></div></dl><div className="advance-strip"><span>Estimated 50% advance</span><strong>{rupees(advanceAmount)}</strong></div><p className="estimate-note">Final price and delivery charges will be confirmed by Darby's Pastries.</p></div></aside>
+              <div className="builder-actions mobile-builder-submit"><button type="submit" className="btn btn-primary builder-submit">Send order on WhatsApp →</button></div>
             </form>)}
           </div>
-        </section>
+        </section>}
+        {sectionVisibility.addOns && focusedBrowseView === "custom" && renderAddOnSection()}
 
-        <section className="reviews-section" id="reviews"><div className="container"><div className="section-head"><div><p className="eyebrow">Celebration stories</p><h2>Customer Review Highlights</h2></div><p className="lede">What local customers value when they choose a cake for the moment.</p></div><div className="reviews-shell">{[["A wide choice of familiar flavours, with eggless and custom-design options when the occasion calls for something personal.", "Birthday cake order", "KR Puram, Bengaluru"], ["From a half-kilo cake to a larger celebration centrepiece, it is easy to find the right size and flavour.", "Family celebration", "Bengaluru"], ["Indian-inspired flavours such as Rasmalai sit alongside rich chocolate favourites for a menu with range.", "Flavour discovery", "KR Puram, Bengaluru"]].map(([quote, name, place], index) => <article className={`review-slide ${reviewIndex === index ? "active" : ""}`} key={name}><div><div className="review-stars" aria-label="5 out of 5 stars">★★★★★</div><blockquote>“{quote}”</blockquote><div className="review-person"><strong>{name}</strong><span>{place}</span></div></div></article>)}<div className="review-controls"><button className="review-control" type="button" aria-label="Previous review" onClick={() => setReviewIndex((reviewIndex + 2) % 3)}>←</button><div className="review-dots">{[0, 1, 2].map((index) => <button className={`review-dot ${reviewIndex === index ? "active" : ""}`} key={index} type="button" aria-label={`Show review ${index + 1}`} onClick={() => setReviewIndex(index)} />)}</div><button className="review-control" type="button" aria-label="Next review" onClick={() => setReviewIndex((reviewIndex + 1) % 3)}>→</button></div></div></div></section>
+        {focusedBrowseView === "home" && sectionVisibility.reviews && <section className="reviews-section" id="reviews"><div className="container">
+          <div className="section-head"><div><p className="eyebrow">Celebration stories</p><h2>Customer Review Highlights</h2></div><p className="lede">What local customers value when they choose a cake for the moment.</p></div>
+          <div className="reviews-shell">{reviewHighlights.slice(0, 3).map((review, index) => <article className={`review-slide ${reviewIndex === index ? "active" : ""}`} key={`${review.name}-${index}`}><div><div className="review-stars" aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(review.rating)}</div><blockquote>“{review.quote}”</blockquote><div className="review-person"><strong>{review.name}</strong><span>{review.place}</span></div></div></article>)}
+            {reviewHighlights.length > 1 && <div className="review-controls"><button className="review-control" type="button" aria-label="Previous review" onClick={() => setReviewIndex((reviewIndex + reviewHighlights.length - 1) % reviewHighlights.length)}>←</button><div className="review-dots">{reviewHighlights.slice(0, 3).map((review, index) => <button className={`review-dot ${reviewIndex === index ? "active" : ""}`} key={`${review.name}-dot-${index}`} type="button" aria-label={`Show review ${index + 1}`} onClick={() => setReviewIndex(index)} />)}</div><button className="review-control" type="button" aria-label="Next review" onClick={() => setReviewIndex((reviewIndex + 1) % reviewHighlights.length)}>→</button></div>}
+          </div>
+        </div></section>}
 
-        <section className="faq-section" id="faq"><div className="container faq-layout"><div><p className="eyebrow">Good to know</p><h2>Frequently Asked Questions</h2><p className="lede">Quick answers before you place your order.</p></div><div className="faq-list"><details className="faq-item" open><summary>How to order?</summary><p>Choose a menu cake and continue on WhatsApp, or use the Custom Cake Builder for a themed cake.</p></details><details className="faq-item"><summary>Do you offer same day delivery?</summary><p>Same-day delivery is available for selected cakes and nearby areas, subject to stock and delivery capacity.</p></details><details className="faq-item"><summary>Can I order photo cakes?</summary><p>Yes. Send your photo, preferred flavour, weight and required date on WhatsApp so the bakery can confirm print quality.</p></details><details className="faq-item"><summary>Do you offer eggless cakes?</summary><p>Yes. Eggless preparation is available across cake flavours for an additional ₹50.</p></details></div></div></section>
       </main>
 
       <footer id="footer-contact">
         <div className="footer-trust"><div className="container footer-trust-grid"><div className="footer-trust-item"><span><strong>Same Day Delivery</strong><span>Selected cakes & nearby areas</span></span></div><div className="footer-trust-item"><span><strong>Freshly Baked</strong><span>Prepared with care for every order</span></span></div><div className="footer-trust-item"><span><strong>Secure Payments</strong><span>Flexible payment options available</span></span></div></div></div>
         <div className="container footer-main"><div className="footer-grid">
-          <section><div className="footer-brand"><img src={asset("9ce04fb5e8b4.png")} alt="Darby's Pastries logo" /><div><strong>Darby's Pastries</strong><span>FRESHLY BAKED</span></div></div><p className="footer-tagline">Fresh cakes for everyday moments and memorable celebrations.</p><p className="footer-address">Site No. 3, Opposite Krishna Driving School, KR Puram Road, Bangalore - 560036</p><div className="footer-contact-list"><a className="footer-contact-link" href="https://wa.me/919835888631?text=Hello%20Darby%27s%20Pastries" target="_blank" rel="noreferrer">WhatsApp 98358 88631</a><a className="footer-contact-link" href="tel:+918789274593">Call 87892 74593</a><span className="footer-contact-link">Daily · 10:00 AM - 9:00 PM</span></div></section>
+          <section><div className="footer-brand"><img src={asset("9ce04fb5e8b4.png")} alt="Darby's Pastries logo" /><div><strong>Darby's Pastries</strong><span>FRESHLY BAKED</span></div></div><p className="footer-tagline">Fresh cakes for everyday moments and memorable celebrations.</p><p className="footer-address">No. 52/1, Maheshwaramma Temple Road, Opp. Saraswathinagar, Mahadevapura Village and Post, Bengaluru - 560048</p><div className="footer-contact-list"><a className="footer-contact-link" href="https://wa.me/919835886863?text=Hello%20Darby%27s%20Pastries" target="_blank" rel="noreferrer">WhatsApp 9835886863</a><a className="footer-contact-link" href="tel:+919835886863">Call 9835886863</a><span className="footer-contact-link">Daily · 8 AM - 12 PM</span></div><div className="footer-contact-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.6-1.7a11.8 11.8 0 0 0 5.3 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.3-6.1-3.5-8.3ZM12.1 21.6a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.9 1 1-3.8-.3-.4a9.8 9.8 0 1 1 8.6 4.8Zm5.4-7.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.3-.6.1a8 8 0 0 1-2.5-1.5 9.2 9.2 0 0 1-1.7-2.1c-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.2 0-.4 0-.5l-1-2.3c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.7.4s-1 1-1 2.5 1 2.9 1.2 3.1a11.3 11.3 0 0 0 4.4 4 10.7 10.7 0 0 0 1.5.6c.6.2 1.1.2 1.5.1.5-.1 1.8-.7 2-1.4s.3-1.3.2-1.4-.3-.2-.6-.4Z" /></svg></a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.4" cy="6.7" r="1.15" fill="currentColor"/></svg></a></div></section>
           <section className="footer-column"><h3>Quick Links</h3><nav><a href="#home">Home</a><a href="#menu">Menu</a><a href="#custom">Custom Cakes</a><a href="#reviews">Reviews</a><a href="#footer-contact">Contact</a></nav></section>
           <section className="footer-column"><h3>Cake Categories</h3><nav><a href="#menu">Birthday Cakes</a><a href="#menu">Anniversary Cakes</a><a href="#menu">Photo Cakes</a><a href="#custom">Designer Cakes</a><a href="#menu">Eggless Cakes</a></nav></section>
-          <section className="footer-column"><h3>Customer Care</h3><nav><button type="button" className="footer-text-link" onClick={() => setDialog("How to Order")}>How to Order</button><button type="button" className="footer-text-link" onClick={() => setDialog("Delivery & Pickup")}>Delivery & Pickup</button><button type="button" className="footer-text-link" onClick={() => setDialog("FAQ")}>FAQ</button><button type="button" className="footer-text-link" onClick={() => setDialog("Privacy Policy")}>Privacy Policy</button><button type="button" className="footer-text-link" onClick={() => setDialog("Terms & Conditions")}>Terms & Conditions</button></nav></section>
-          <section className="footer-column footer-newsletter-card"><p className="footer-newsletter-kicker">Darby's insider list</p><h3>Fresh bakes, first dibs.</h3><p className="footer-newsletter-copy">Seasonal flavours, celebration ideas and special offers—sent only when there is something worth sharing.</p><form className="footer-newsletter-form" onSubmit={(event) => { event.preventDefault(); setDialog("How to Order"); }}><div className="footer-newsletter-field"><input type="email" aria-label="Email address" placeholder="Your email address" required /><button type="submit">Join list</button></div></form><p className="footer-newsletter-note">We send updates via Email & WhatsApp</p><div className="footer-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp">W</a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram">I</a></div></section>
+          <section className="footer-column"><h3>Customer Care</h3><nav>{[["about-us", "About Us"], ["contact-us", "Contact Us"], ["shipping-delivery", "Shipping & Delivery"], ["returns-refunds", "Returns & Refunds"], ["cancellation", "Cancellation Policy"], ["coupons", "Coupon & Discount Policy"], ["privacy", "Privacy Policy"], ["terms", "Terms & Conditions"], ["cookies", "Cookie Notice"]].map(([slug, label]) => <button className="footer-text-link" type="button" key={slug} onClick={() => setCustomerCarePage(slug)}>{label}</button>)}</nav></section>
+          <section className="footer-column footer-newsletter-card"><p className="footer-newsletter-kicker">Darby's insider list</p><h3>Fresh bakes, first dibs.</h3><p className="footer-newsletter-copy">Seasonal flavours, celebration ideas and special offers—sent only when there is something worth sharing.</p><form className="footer-newsletter-form" onSubmit={(event) => { event.preventDefault(); setDialog("How to Order"); }}><div className="footer-newsletter-field"><input type="email" aria-label="Email address" placeholder="Your email address" required /><button type="submit">Join list</button></div></form><p className="footer-newsletter-note">We send updates via Email & WhatsApp</p><div className="footer-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.6-1.7a11.8 11.8 0 0 0 5.3 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.3-6.1-3.5-8.3ZM12.1 21.6a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.9 1 1-3.8-.3-.4a9.8 9.8 0 1 1 8.6 4.8Zm5.4-7.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.3-.6.1a8 8 0 0 1-2.5-1.5 9.2 9.2 0 0 1-1.7-2.1c-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.2 0-.4 0-.5l-1-2.3c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.7.4s-1 1-1 2.5 1 2.9 1.2 3.1a11.3 11.3 0 0 0 4.4 4 10.7 10.7 0 0 0 1.5.6c.6.2 1.1.2 1.5.1.5-.1 1.8-.7 2-1.4s.3-1.3.2-1.4-.3-.2-.6-.4Z" /></svg></a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.4" cy="6.7" r="1.15" fill="currentColor"/></svg></a></div></section>
         </div><div className="footer-bottom"><span>© 2026 <strong>Darby's Pastries</strong>. All rights reserved.</span><span>Made with love in Bangalore</span></div></div>
       </footer>
 
@@ -430,6 +730,12 @@ function HomePage() {
 
 export default HomePage;
 
+function CustomerCareCard({ slug, onClose }) {
+  const page = policyPages[slug];
+  if (!page) return null;
+  return <section className="customer-care-overlay" role="dialog" aria-modal="true" aria-label={page.title}><article className="customer-care-card"><button className="customer-care-close" type="button" onClick={onClose} aria-label={`Close ${page.title}`}>×</button><p className="policy-eyebrow">DARBY'S PASTRIES · CUSTOMER INFORMATION</p><h1>{page.title}</h1><p className="policy-updated">Last updated: 26 October 2026</p>{page.sections.map(([heading, copy]) => <section key={heading}><h2>{heading}</h2>{copy.split("\n").map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</section>)}</article></section>;
+}
+
 function AccountButton({ signedIn, onOpenAccount }) {
   const [open, setOpen] = useState(false);
 
@@ -446,8 +752,8 @@ function AccountButton({ signedIn, onOpenAccount }) {
       <span>Account</span>
     </button>
     {open && <div className="account-quick-dropdown" role="menu">
-      <button type="button" role="menuitem" onClick={() => window.location.assign("/sign-in")}>Log In</button>
-      <button type="button" role="menuitem" onClick={() => window.location.assign("/sign-up")}>Sign Up</button>
+      <a href="/sign-in" role="menuitem">Log In</a>
+      <a href="/sign-up" role="menuitem">Sign Up</a>
     </div>}
   </div>;
 }

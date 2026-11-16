@@ -46,10 +46,12 @@ function uploadImage(file, { folder, publicId, profile = "product" }) {
   const format = assertValidImage(file);
   const cloudinary = requireCloudinary();
   return new Promise((resolve, reject) => {
-    const dimensions = profile === "hero" ? { width: 1920, height: 1080 } : { width: 1200, height: 1200 };
+    // Keep enough source detail for a customer to inspect a product image on
+    // a high-density phone display or when zooming in.
+    const dimensions = profile === "hero" ? { width: 1920, height: 1080 } : { width: 1600, height: 1600 };
     const stream = cloudinary.uploader.upload_stream({ folder, public_id: publicId, resource_type: "image", format, overwrite: false, unique_filename: false, allowed_formats: [...ALLOWED_FORMATS], transformation: [{ ...dimensions, crop: "limit", quality: "auto:good" }] }, (error, result) => {
       if (error) return reject(error);
-      const delivery = profile === "hero" ? deliveryUrl(result.secure_url, 1920, 1080, "good") : deliveryUrl(result.secure_url, 700, 700, "eco");
+      const delivery = profile === "hero" ? deliveryUrl(result.secure_url, 1920, 1080, "good") : deliveryUrl(result.secure_url, 1400, 1400, "good");
       return resolve({ secure_url: delivery, public_id: result.public_id });
     });
     stream.end(file.buffer);

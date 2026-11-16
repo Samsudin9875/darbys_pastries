@@ -24,7 +24,20 @@ function StorefrontPanels({
 }) {
   const [checkout, setCheckout] = useState({ name: "", phone: "", deliveryType: "Home Delivery", address: "", pincode: "" });
   const [checkoutStatus, setCheckoutStatus] = useState("");
-  const submitOrder = async () => { try { setCheckoutStatus("Saving order…"); const result = await placeCartOrder(checkout); setCheckoutStatus(`Order ${result.order.orderId} saved. Opening WhatsApp…`); window.open(result.whatsappUrl, "_blank", "noopener"); } catch (error) { setCheckoutStatus(error.message); } };
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitOrder = async (event) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      setCheckoutStatus("Saving your order securely…");
+      const result = await placeCartOrder(checkout);
+      setCheckoutStatus(`Order ${result.order.orderId} saved. Opening WhatsApp for confirmation…`);
+      window.open(result.whatsappUrl, "_blank", "noopener");
+    } catch (error) {
+      setCheckoutStatus(error.message || "Your order could not be saved. Please try again.");
+    } finally { setIsSubmitting(false); }
+  };
   const previousFocus = useRef(null);
 
   useEffect(() => {
@@ -91,8 +104,8 @@ function StorefrontPanels({
           {cart.length ? (
             <>
               <div className="cart-list">
-                {cart.map((item) => (
-                  <article className="cart-item" key={`${item.name}-${item.weight}-${item.category}`}>
+                {cart.map((item, index) => (
+                  <article className="cart-item" key={item.cartId || `${item.name}-${item.weight}-${item.category}`}>
                     <img src={item.image || getImageFor(item.name, item.category).src} alt={item.imageAlt || item.name} />
                     <div>
                       <h3>{item.name}</h3>
@@ -105,22 +118,22 @@ function StorefrontPanels({
                       <button className="cart-remove" type="button" onClick={() => updateCartQuantity(item, -item.quantity)}>Remove</button>
                     </div>
                     <div className="cart-line-price">{rupees(item.price * item.quantity)}</div>
+                    {index === cart.length - 1 && <div className="cart-item-total"><span>Order total</span><strong>{rupees(cartTotal)}</strong></div>}
                   </article>
                 ))}
               </div>
-              <div className="cart-summary">
-                <div className="cart-total"><span>Total</span><strong>{rupees(cartTotal)}</strong></div>
-                <div className="cart-checkout-head"><span>Guest checkout</span><p>No login required. We will save your request before opening WhatsApp.</p></div>
+              <form className="cart-summary" onSubmit={submitOrder}>
+                <div className="cart-checkout-head"><span>Guest checkout</span><p>No account needed. Your order request is saved before WhatsApp opens.</p></div>
                 <div className="cart-checkout-grid">
-                  <label><span>Full name</span><input className="cart-checkout-input" value={checkout.name} onChange={(e) => setCheckout({ ...checkout, name: e.target.value })} placeholder="Enter your name" maxLength="120" autoComplete="name" /></label>
-                  <label><span>WhatsApp number</span><input className="cart-checkout-input" value={checkout.phone} onChange={(e) => setCheckout({ ...checkout, phone: e.target.value })} placeholder="10-digit mobile number" inputMode="tel" maxLength="14" autoComplete="tel" /></label>
+                  <label><span>Full name <b>*</b></span><input className="cart-checkout-input" value={checkout.name} onChange={(e) => setCheckout({ ...checkout, name: e.target.value })} placeholder="Your full name" maxLength="120" autoComplete="name" required /></label>
+                  <label><span>WhatsApp number <b>*</b></span><input className="cart-checkout-input" value={checkout.phone} onChange={(e) => setCheckout({ ...checkout, phone: e.target.value })} placeholder="10-digit mobile number" inputMode="tel" maxLength="14" autoComplete="tel" required /></label>
                 </div>
-                <fieldset className="cart-delivery-choice"><legend>How would you like to receive your order?</legend><label><input type="radio" name="cartDeliveryType" checked={checkout.deliveryType === "Home Delivery"} onChange={() => setCheckout({ ...checkout, deliveryType: "Home Delivery" })} /> Home delivery</label><label><input type="radio" name="cartDeliveryType" checked={checkout.deliveryType === "Store Pickup"} onChange={() => setCheckout({ ...checkout, deliveryType: "Store Pickup" })} /> Store pickup</label></fieldset>
-                {checkout.deliveryType === "Home Delivery" && <div className="cart-checkout-grid"><label className="cart-checkout-wide"><span>Delivery address</span><textarea className="cart-checkout-input" value={checkout.address} onChange={(e) => setCheckout({ ...checkout, address: e.target.value })} placeholder="House / flat, street, area and landmark" maxLength="500" autoComplete="street-address" /></label><label><span>Pincode</span><input className="cart-checkout-input" value={checkout.pincode} onChange={(e) => setCheckout({ ...checkout, pincode: e.target.value.replace(/\D/g, "") })} placeholder="6-digit pincode" inputMode="numeric" maxLength="6" autoComplete="postal-code" /></label></div>}
-                <button type="button" className="btn btn-primary" onClick={submitOrder}>Save request &amp; continue to WhatsApp</button>
+                <fieldset className="cart-delivery-choice"><legend>Choose fulfilment</legend><label className={checkout.deliveryType === "Home Delivery" ? "selected" : ""}><input type="radio" name="cartDeliveryType" checked={checkout.deliveryType === "Home Delivery"} onChange={() => setCheckout({ ...checkout, deliveryType: "Home Delivery" })} /> <span>Home delivery<small>Share your delivery address</small></span></label><label className={checkout.deliveryType === "Store Pickup" ? "selected" : ""}><input type="radio" name="cartDeliveryType" checked={checkout.deliveryType === "Store Pickup"} onChange={() => setCheckout({ ...checkout, deliveryType: "Store Pickup", address: "", pincode: "" })} /> <span>Store pickup<small>Collect from our bakery</small></span></label></fieldset>
+                {checkout.deliveryType === "Home Delivery" && <div className="cart-checkout-grid delivery-fields"><label className="cart-checkout-wide"><span>Delivery address <b>*</b></span><textarea className="cart-checkout-input" value={checkout.address} onChange={(e) => setCheckout({ ...checkout, address: e.target.value })} placeholder="House / flat, street, area and landmark" maxLength="500" autoComplete="street-address" required /></label><label><span>Pincode <b>*</b></span><input className="cart-checkout-input" value={checkout.pincode} onChange={(e) => setCheckout({ ...checkout, pincode: e.target.value.replace(/\D/g, "") })} placeholder="6-digit pincode" inputMode="numeric" maxLength="6" autoComplete="postal-code" required /></label></div>}
+                <button type="submit" className="btn btn-primary cart-submit" disabled={isSubmitting}>{isSubmitting ? "Saving your order…" : "Save order & continue on WhatsApp"}</button>
                 {checkoutStatus && <p className="cart-note" role="status">{checkoutStatus}</p>}
-                <p className="cart-note">Final availability, delivery charge and pickup/delivery timing are confirmed by the bakery on WhatsApp.</p>
-              </div>
+                <p className="cart-note">You’ll confirm availability, delivery timing and final amount with the bakery on WhatsApp.</p>
+              </form>
             </>
           ) : (
             <div className="cart-empty">
@@ -185,7 +198,7 @@ function StorefrontPanels({
         aria-modal={panel === "account"}
         aria-labelledby="accountPanelTitle"
         aria-hidden={panel !== "account"}
-        inert={panel !== "account"}
+        inert={panel === "account" ? undefined : true}
       >
         <div className="panel-header">
           <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("9ce04fb5e8b4.png")} alt="" /><span>Darby's<br />Pastries</span></button>
@@ -209,8 +222,8 @@ function StorefrontPanels({
                 {!user && clerkEnabled && <>
                   <p className="account-preview-note">Guest browsing · No account required</p>
                   <div className="account-auth-actions">
-                    <button className="btn btn-primary" type="button" onClick={() => window.location.assign("/sign-in")}>Log In</button>
-                    <button className="btn btn-secondary" type="button" onClick={() => window.location.assign("/sign-up")}>Sign Up</button>
+                    <a className="btn btn-primary" href="/sign-in">Log In</a>
+                    <a className="btn btn-secondary" href="/sign-up">Sign Up</a>
                   </div>
                 </>}
                 {!user && !clerkEnabled && <p className="account-preview-note">Guest browsing · No account required</p>}

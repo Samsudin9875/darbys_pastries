@@ -72,8 +72,21 @@ async function seedCatalog() {
       await Product.updateOne({ _id: product._id }, { $set: { variants: variantIds } });
     }
   }
+  // Gift categories have products added through the Admin panel, so create
+  // their category records even when the initial cake menu has no entries.
+  for (const [legacyKey, name] of [
+    ["flowers", "Flowers"], ["chocolates", "Chocolates"], ["accessories", "Cake Accessories"], ["gift-hampers", "Gift Hampers"],
+    ["birthday", "Birthday Cakes"], ["anniversary", "Anniversary Cakes"], ["festival", "Festival Cakes"],
+  ]) {
+    await Category.findOneAndUpdate(
+      { legacyKey },
+      { $set: { name, slug: slugify(legacyKey), active: true } },
+      { upsert: true, new: true, runValidators: true },
+    );
+    categoryCount += 1;
+  }
   await Product.updateMany(
-    { slug: { $nin: publishedSlugs } },
+    { slug: { $nin: publishedSlugs }, legacyCategoryKey: { $nin: ["flowers", "chocolates", "accessories", "gift-hampers", "birthday", "anniversary", "festival"] } },
     { $set: { active: false, images: [] } },
   );
   console.log(`Seeded ${categoryCount} categories, ${productCount} products, and ${variantCount} variants.`);

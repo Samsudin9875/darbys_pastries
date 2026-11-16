@@ -24,3 +24,42 @@ html, body, #root { width: 100%; min-height: 100%; margin: 0; }
 .auth-intro span { color: #f2e7e3; font-size: 1.05rem; line-height: 1.7; }
 .auth-card { display: grid; place-items: center; min-width: 0; }
 @media (max-width: 760px) { .auth-page { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.25rem; } .auth-intro { padding: 2rem; border-radius: 1.25rem; } }
+
+.policy-page { min-height: 100dvh; background: #fff8f5; color: #2a2020; font: 400 1rem/1.7 system-ui, sans-serif; }
+.policy-site-nav { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.98); border-bottom: 1px solid #eadfdb; box-shadow: 0 8px 28px rgba(24,30,39,.07); }
+.policy-header-main { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.policy-delivery { min-width: 170px; }
+.policy-search { flex: 1 1 300px; max-width: 480px; min-width: 180px; display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 14px; border: 1px solid #d9dde3; border-radius: 10px; color: #777; font-size: .78rem; text-decoration: none; }
+.policy-search svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.policy-search:hover { border-color: #bd3542; color: #bd3542; }
+.policy-quick-links { margin-left: 0; }
+.policy-quick-icon { height: 22px; display: grid; place-items: center; color: #2a2020; font-size: 1.15rem; line-height: 1; }
+.policy-back { color: #bd3542; font-size: .86rem; font-weight: 700; text-decoration: none; }
+.policy-nav-bar { border-top: 1px solid #f0e8e5; }
+.policy-nav-links { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 4vw, 46px); }
+.policy-nav-links a { padding: 10px 0; color: #2a2020; font-size: .84rem; font-weight: 700; text-decoration: none; }
+.policy-nav-links a:hover { color: #bd3542; }
+.policy-content { width: min(calc(100% - 3rem), 52rem); margin: 0 auto; padding: 2rem 0; }
+.policy-page article { width: 100%; margin-inline: auto; }
+.policy-brand { color: #2a2020; font-family: Georgia, serif; font-size: 1.25rem; font-weight: 800; text-decoration: none; }
+.policy-brand span { display: block; color: #bd3542; font: 800 .58rem/1 system-ui; letter-spacing: .2em; }
+.policy-home { color: #bd3542; font-weight: 700; text-decoration: none; }
+.policy-page article { box-sizing: border-box; padding: clamp(1.5rem, 5vw, 3.5rem); border: 1px solid #eadfdb; border-radius: 1.25rem; background: #fff; box-shadow: 0 20px 50px rgba(59,31,38,.08); }
+.policy-eyebrow { margin: 0 0 .5rem; color: #bd3542; font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
+.policy-page h1 { margin: 0; font: 700 clamp(2rem, 5vw, 3.25rem)/1.1 Georgia, serif; }
+.policy-updated { margin: .75rem 0 2.25rem; color: #777; font-size: .85rem; }
+.policy-page section { padding: 1.35rem 0; border-top: 1px solid #eee4e1; }
+.policy-page h2 { margin: 0 0 .55rem; font: 700 1.22rem/1.25 Georgia, serif; }
+.policy-page p { margin: .5rem 0; white-space: pre-line; }
+.policy-page article a { color: #bd3542; }
+.policy-contact { margin-top: 1rem; padding: 1.25rem !important; border: 0 !important; border-radius: .85rem; background: #fff1f3; }
+.customer-care-overlay { position: fixed; z-index: 40; inset: 120px 0 0; overflow-y: auto; padding: 2rem 1.5rem; background: rgba(255,248,245,.98); }
+.customer-care-card { position: relative; box-sizing: border-box; width: min(100%, 52rem); margin: 0 auto; padding: clamp(1.5rem, 5vw, 3.5rem); border: 1px solid #eadfdb; border-radius: 1.25rem; background: #fff; color: #2a2020; box-shadow: 0 20px 50px rgba(59,31,38,.08); font: 400 1rem/1.7 system-ui, sans-serif; }
+.customer-care-card h1 { margin: 0; font: 700 clamp(2rem, 5vw, 3.25rem)/1.1 Georgia, serif; }
+.customer-care-card h2 { margin: 0 0 .55rem; font: 700 1.22rem/1.25 Georgia, serif; }
+.customer-care-card section { padding: 1.35rem 0; border-top: 1px solid #eee4e1; }
+.customer-care-card p { margin: .5rem 0; white-space: pre-line; }
+.customer-care-close { position: absolute; top: 18px; right: 18px; width: 38px; height: 38px; border: 1px solid #eadfdb; border-radius: 50%; background: #fff; color: #60616a; font-size: 1.6rem; line-height: 1; cursor: pointer; }
+.customer-care-close:hover { border-color: #bd3542; color: #bd3542; }
+@media (max-width: 760px) { .policy-delivery, .policy-search { display: none; } .policy-header-main { min-height: 62px; } .policy-site-nav .brand-logo { width: 43px; height: 43px; } .policy-site-nav .brand-name { font-size: 1rem; } .policy-quick-links { gap: 0; } .policy-quick-links .quick-link { min-width: 42px; font-size: .58rem; } .policy-nav-links { justify-content: flex-start; gap: 20px; overflow-x: auto; } }
+@media (max-width: 560px) { .policy-content { width: min(calc(100% - 2rem), 52rem); padding: 1rem 0; } .policy-page article { padding: 1.4rem; border-radius: 1rem; } .customer-care-overlay { inset: 112px 0 0; padding: 1rem; } .customer-care-card { padding: 3.75rem 1.4rem 1.4rem; border-radius: 1rem; } }

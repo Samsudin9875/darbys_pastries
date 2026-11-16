@@ -6,7 +6,7 @@ function requireAdmin(request, _response, next) {
     return next(error);
   }
 
-  if (!adminEmail || request.applicationUser.email !== adminEmail || request.applicationUser.role !== "admin") {
+  if (!request.authenticatedUser?.isAdmin || request.applicationUser.role !== "admin") {
     const error = new Error("Administrator authorization is required.");
     error.status = 403;
     error.code = "forbidden";
@@ -16,5 +16,3 @@ function requireAdmin(request, _response, next) {
 }
 
 module.exports = requireAdmin;
-const { adminEmail } = require("../config/env");
-

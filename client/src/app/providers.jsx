@@ -12,8 +12,10 @@ export default function AppProviders({ children }) {
   if (!publishableKey) return app;
 
   return (
-    <ClerkProvider publishableKey={publishableKey} signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" appearance={{ variables: { colorPrimary: "#cf3037", colorText: "#24242a", colorBackground: "#ffffff", borderRadius: "0.75rem" } }}>
-      <ClerkAuthTokenProvider>{app}</ClerkAuthTokenProvider>
-    </ClerkProvider>
+    <ErrorBoundary>
+      <ClerkProvider publishableKey={publishableKey} signInUrl="/sign-in" signUpUrl="/sign-up" signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" appearance={{ variables: { colorPrimary: "#cf3037", colorText: "#24242a", colorBackground: "#ffffff", borderRadius: "0.75rem" } }}>
+        <ClerkAuthTokenProvider>{app}</ClerkAuthTokenProvider>
+      </ClerkProvider>
+    </ErrorBoundary>
   );
 }

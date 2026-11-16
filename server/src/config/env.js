@@ -2,7 +2,11 @@ require("dotenv").config();
 
 const nodeEnv = process.env.NODE_ENV || "development";
 const port = Number(process.env.PORT || 3000);
-const clientOrigins = (process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN || (nodeEnv === "production" ? "" : "http://localhost:5173")).split(",").map((origin) => origin.trim()).filter(Boolean);
+const normaliseOrigin = (origin) => origin.trim().replace(/\/+$/, "");
+// A wildcard is useful for Vercel preview deployments, for example
+// `https://*.vercel.app`. Keep it explicit: no origin is trusted unless it is
+// listed in CLIENT_ORIGINS.
+const clientOrigins = (process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN || (nodeEnv === "production" ? "" : "http://localhost:5173")).split(",").map(normaliseOrigin).filter(Boolean);
 const mongoUri = process.env.MONGODB_URI || "";
 const clerkSecretKey = process.env.CLERK_SECRET_KEY || "";
 const clerkWebhookSigningSecret = process.env.CLERK_WEBHOOK_SIGNING_SECRET || "";
