@@ -126,6 +126,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
     [themeSettings, setThemeSettings] = useState(defaultThemeOptions.map(([, label]) => label)),
     [newThemeOption, setNewThemeOption] = useState(""),
     [featuredProducts, setFeaturedProducts] = useState(null),
+    [occasionThemeDiscount, setOccasionThemeDiscount] = useState(10),
     [reviewHighlights, setReviewHighlights] = useState([
       { quote: "A wide choice of familiar flavours, with eggless and custom-design options when the occasion calls for something personal.", name: "Birthday cake order", place: "KR Puram, Bengaluru", rating: 5 },
       { quote: "From a half-kilo cake to a larger celebration centrepiece, it is easy to find the right size and flavour.", name: "Family celebration", place: "Bengaluru", rating: 5 },
@@ -193,6 +194,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
           if (Array.isArray(x.data?.themeOptions)) setThemeSettings(x.data.themeOptions);
           if (Array.isArray(x.data?.reviewHighlights)) setReviewHighlights(x.data.reviewHighlights.slice(0, 3));
           if (x.data?.featuredProducts) setFeaturedProducts(x.data.featuredProducts);
+          if (Number.isInteger(x.data?.occasionThemeDiscount)) setOccasionThemeDiscount(x.data.occasionThemeDiscount);
         }
         if (mounted) setAccess("allowed");
       } catch {
@@ -403,7 +405,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
     const response = await api("/api/admin/site-settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sectionVisibility, themeOptions: themeSettings, reviewHighlights, featuredProducts: featuredProducts || { flowers: [], chocolates: [], accessories: [], "gift-hampers": [] } }),
+      body: JSON.stringify({ sectionVisibility, themeOptions: themeSettings, reviewHighlights, occasionThemeDiscount, featuredProducts: featuredProducts || { flowers: [], chocolates: [], accessories: [], "gift-hampers": [] } }),
     });
     const payload = await response.json();
     if (!response.ok) throw Error(payload.message);
@@ -746,6 +748,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
                 <div className="admin-product-form-grid">
                   {Object.entries({ bestSellers: "Best Sellers", occasionTheme: "Occasions & themes", addOns: "Flowers, chocolates & gifts", reviews: "Customer review highlights" }).map(([key, label]) => <label className="admin-product-choice" key={key}><input type="checkbox" checked={sectionVisibility[key]} onChange={(event) => setSectionVisibility((current) => ({ ...current, [key]: event.target.checked }))} /><span>Show {label}</span></label>)}
                 </div>
+                <label className="field">Occasion &amp; Theme discount (%)<input type="number" min="0" max="90" step="1" value={occasionThemeDiscount} onChange={(event) => setOccasionThemeDiscount(Math.max(0, Math.min(90, Number(event.target.value) || 0)))} /><small>Set 10 for 10% off. The sale price is used for cart and WhatsApp orders.</small></label>
                 <div className="field full"><strong>Theme options</strong><div className="admin-product-choice-list">{themeSettings.map((theme) => <label className="admin-product-choice" key={theme}><span>{theme}</span><button type="button" className="admin-mini-action" onClick={() => setThemeSettings((current) => current.filter((value) => value !== theme))}>Remove</button></label>)}</div><div className="category-admin-fields"><label>Add theme<input value={newThemeOption} maxLength="50" onChange={(event) => setNewThemeOption(event.target.value)} placeholder="e.g. Jungle Safari" /></label><button type="button" className="btn btn-secondary" onClick={() => { const theme = newThemeOption.trim(); if (theme && !themeSettings.some((value) => value.toLowerCase() === theme.toLowerCase())) setThemeSettings((current) => [...current, theme]); setNewThemeOption(""); }}>Add theme</button></div></div>
                 <div className="field full"><strong>Featured add-on products (choose up to 2 per category)</strong>{["flowers", "chocolates", "accessories", "gift-hampers"].map((category) => <fieldset className="admin-product-choice-list" key={category}><legend>{categoryLabels[category]}</legend>{items.filter((product) => product.active && (product.mainCategory || mainCategoryForLegacyKey(product.legacyCategoryKey)) === category).map((product) => <label className="admin-product-choice" key={product._id}><input type="checkbox" checked={(featuredProducts?.[category] || []).includes(product._id)} onChange={(event) => toggleFeaturedProduct(category, product._id, event.target.checked)} /><span>{product.name}</span></label>)}</fieldset>)}</div>
                 <div className="field full"><strong>Featured customer reviews (up to 3)</strong>{reviewHighlights.map((review, index) => <div className="admin-product-form-grid" key={`review-${index}`}><label className="field full">Review<input maxLength="500" value={review.quote} onChange={(event) => setReviewHighlights((current) => current.map((item, position) => position === index ? { ...item, quote: event.target.value } : item))} /></label><label className="field">Customer name<input maxLength="100" value={review.name} onChange={(event) => setReviewHighlights((current) => current.map((item, position) => position === index ? { ...item, name: event.target.value } : item))} /></label><label className="field">Location<input maxLength="100" value={review.place} onChange={(event) => setReviewHighlights((current) => current.map((item, position) => position === index ? { ...item, place: event.target.value } : item))} /></label><label className="field">Rating<select value={review.rating} onChange={(event) => setReviewHighlights((current) => current.map((item, position) => position === index ? { ...item, rating: Number(event.target.value) } : item))}>{[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} stars</option>)}</select></label></div>)}</div>
@@ -773,7 +776,7 @@ export default function AdminPanel({ onClose, hero = fallback, onHeroChange }) {
               <div className="admin-product-form-grid">
                 <label className="field full">Name<input required maxLength="140" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></label>
                 <label className="field full">Description<textarea maxLength="2000" value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></label>
-                <label className="field">Flavour<input maxLength="100" value={editing.flavour} onChange={(e) => setEditing({ ...editing, flavour: e.target.value })} /></label>
+                {editing.mainCategory === "cakes" && <label className="field">Flavour<input maxLength="100" value={editing.flavour} onChange={(e) => setEditing({ ...editing, flavour: e.target.value })} /></label>}
                 <label className="field">Main category<select value={editing.mainCategory} onChange={(e) => setEditing({ ...editing, mainCategory: e.target.value, ...(e.target.value === "cakes" ? {} : { occasionIds: [], themes: [], customThemes: "" }) })}>{mainCategoryOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
                 {editing.mainCategory === "cakes" && <label className="field">Cake subcategory<select required value={editing.cakeSubcategory || ""} onChange={(e) => setEditing({ ...editing, cakeSubcategory: e.target.value })}><option value="">Choose a subcategory</option>{cakeSubcategoryOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>}
                 {editing.mainCategory === "cakes" && <><div className="field full"><strong>Occasions</strong><div className="admin-product-choice-list">{occasionOptions.map(([key, label]) => <label className="admin-product-choice" key={key}><input type="checkbox" checked={editing.occasionIds.includes(key)} onChange={(e) => setEditing({ ...editing, occasionIds: toggleValue(editing.occasionIds, key, e.target.checked) })} /><span>{label}</span></label>)}</div></div>

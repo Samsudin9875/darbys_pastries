@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/react";
+import { useNavigate } from "react-router-dom";
 
 import { getImageFor } from "../../menu/data/menuData";
 import { rupees } from "../../../utils/storefrontUtils";
@@ -22,7 +23,11 @@ function StorefrontPanels({
   signOut,
   clerkEnabled,
 }) {
-  const [checkout, setCheckout] = useState({ name: "", phone: "", deliveryType: "Home Delivery", address: "", pincode: "" });
+  const navigate = useNavigate();
+  const [checkout, setCheckout] = useState(() => {
+    try { return { name: "", phone: "", deliveryType: "Home Delivery", address: "", pincode: "", ...JSON.parse(window.localStorage.getItem("darbys-checkout") || "{}")} } catch { return { name: "", phone: "", deliveryType: "Home Delivery", address: "", pincode: "" }; }
+  });
+  useEffect(() => { window.localStorage.setItem("darbys-checkout", JSON.stringify(checkout)); }, [checkout]);
   const [checkoutStatus, setCheckoutStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitOrder = async (event) => {
@@ -42,7 +47,7 @@ function StorefrontPanels({
 
   useEffect(() => {
     if (!panel) {
-      previousFocus.current?.focus();
+      previousFocus.current?.focus({ preventScroll: true });
       return undefined;
     }
 
@@ -72,7 +77,7 @@ function StorefrontPanels({
   };
   const goHome = () => {
     closePanel();
-    window.location.assign("/");
+    navigate("/");
   };
 
   return (
@@ -98,7 +103,7 @@ function StorefrontPanels({
             <span className="panel-kicker">ORDER OVERVIEW</span>
             <h2 id="cartPanelTitle">Your Cart <span className="panel-count">{cartCount} {cartCount === 1 ? "item" : "items"}</span></h2>
           </div>
-          <button className="panel-close" type="button" aria-label="Close cart" onClick={closePanel}>×</button>
+          <button className="panel-close panel-close--floating" type="button" aria-label="Close cart" onClick={closePanel}>×</button>
         </div>
         <div className="panel-scroll">
           {cart.length ? (
@@ -161,7 +166,7 @@ function StorefrontPanels({
             <span className="panel-kicker">SAVED FOR LATER</span>
             <h2 id="wishlistPanelTitle">Your Wishlist <span className="panel-count">{wishlistCount} {wishlistCount === 1 ? "item" : "items"}</span></h2>
           </div>
-          <button className="panel-close" type="button" aria-label="Close wishlist" onClick={closePanel}>×</button>
+          <button className="panel-close panel-close--floating" type="button" aria-label="Close wishlist" onClick={closePanel}>×</button>
         </div>
         <div className="panel-scroll">
           {wishlist.length ? (
@@ -206,7 +211,7 @@ function StorefrontPanels({
             <span className="panel-kicker">CUSTOMER PROFILE</span>
             <h2 id="accountPanelTitle">My Account</h2>
           </div>
-          <button className="panel-close" type="button" aria-label="Close account" onClick={closePanel}>×</button>
+          <button className="panel-close panel-close--floating" type="button" aria-label="Close account" onClick={closePanel}>×</button>
         </div>
         <div className="panel-scroll">
           <div className={`account-layout ${user ? "" : "account-guest"}`}>

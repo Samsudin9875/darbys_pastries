@@ -3,11 +3,12 @@ import { BrowserRouter } from "react-router-dom";
 
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import { ClerkAuthTokenProvider } from "./authTokenContext";
+import ScrollRestoration from "./ScrollRestoration";
 
 export default function AppProviders({ children }) {
   const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-  const app = <ErrorBoundary><BrowserRouter>{children}</BrowserRouter></ErrorBoundary>;
+  const app = <ErrorBoundary><BrowserRouter><ScrollRestoration />{children}</BrowserRouter></ErrorBoundary>;
 
   if (!publishableKey) return app;
 

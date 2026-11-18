@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { cakeSizeOptions, labels } from "../data/menuData";
 import { asset, responsiveImageSrcSet, rupees, whatsappOrderLink } from "../../../utils/storefrontUtils";
@@ -12,7 +12,8 @@ const fallbackImageByCategory = {
   desserts: "101920fbaa29.jpg",
 };
 
-export default function ProductCard({ product, wishlist, cart, toggleWishlist, addToCart, openCart, showDetailsLink = true }) {
+export default function ProductCard({ product, wishlist, cart, toggleWishlist, addToCart, openCart, showDetailsLink = true, discountPercent = 0 }) {
+  const location = useLocation();
   const isCake = product.mainCategory === "cakes" || ["classic", "chocolate", "fruit", "special", "photo", "desserts", "custom"].includes(product.category);
   const options = useMemo(() => {
     const apiOptions = (product.variants || []).filter((variant) => variant.active !== false && (variant.stockQuantity == null || variant.stockQuantity > 0)).map((variant) => [variant.label, variant.price, variant._id]);
@@ -35,7 +36,9 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
     setSelected(defaultOption);
   }, [defaultOption, product.name, product.p500, product.p1kg]);
 
-  const currentPrice = Number(selected[1] ?? (isCake ? 0 : product.p500 ?? product.p1kg ?? 0));
+  const originalPrice = Number(selected[1] ?? (isCake ? 0 : product.p500 ?? product.p1kg ?? 0));
+  const currentPrice = Math.round(originalPrice * (1 - Math.max(0, Math.min(90, discountPercent)) / 100));
+  const priceLabel = (price) => discountPercent > 0 ? <><del>{rupees(price)}</del><strong>{rupees(Math.round(Number(price) * (1 - discountPercent / 100)))}</strong>{product.category === "custom" && <small className="custom-cake-saving">Save {rupees(Number(price) - Math.round(Number(price) * (1 - discountPercent / 100)))}</small>}</> : <strong>{rupees(price)}</strong>;
   const displayOptionLabel = (label) => {
     const packSize = String(label || "").match(/\bpack\s*of\s*(\d+)\b/i)?.[1];
     return `Pack of ${packSize && Number(packSize) > 0 ? Number(packSize) : 1}`;
@@ -67,15 +70,19 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
         >
           {saved ? "♥" : "♡"}
         </button>
-        <span className="menu-image-note">{product.image ? "Product image" : "Representative image"}</span>
       </div>
 
       <div className="menu-card-body">
         <div className="menu-top">
           <div>
             <span className="category-tag">{product.subcategory || product.categoryLabel || labels[product.category] || product.category}</span>
+            {discountPercent > 0 && <span className="product-discount-badge">{discountPercent}% OFF</span>}
             <h3>{product.name}</h3>
-            {showDetailsLink && product.id && <Link className="product-card-detail-link" to={`/products/${product.id}`}>View details</Link>}
+            {showDetailsLink && product.id && (() => {
+              const returnTo = `${location.pathname}${location.search}${location.hash}`;
+              const query = new URLSearchParams({ returnTo, scrollY: String(window.scrollY), discount: String(discountPercent) });
+              return <Link className="product-card-detail-link" to={`/products/${product.id}?${query}`} state={{ returnTo, scrollY: window.scrollY, backgroundLocation: location }}>View details</Link>;
+            })()}
             <span className="egg-badge">{product.category === "flowers" ? "Fresh bouquet" : ["chocolates", "gift-hampers"].includes(product.category) ? "Gift ready" : "Freshly baked"}</span>
           </div>
         </div>
@@ -93,11 +100,11 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
                 <button
                   key={weight}
                   type="button"
-                  className={`card-weight-option ${selected[0] === weight ? "active" : ""}`}
+                  className={`card-weight-option ${discountPercent > 0 ? "discounted" : ""} ${product.category === "custom" && discountPercent > 0 ? "custom-cake-price" : ""} ${selected[0] === weight ? "active" : ""}`}
                   onClick={() => setSelected([weight, Number(price)])}
                 >
                   <span>{weight}</span>
-                  <strong>{rupees(price)}</strong>
+                  {priceLabel(price)}
                 </button>
               ))}
             </div>
@@ -110,18 +117,18 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
                 <button
                   key={weight}
                   type="button"
-                  className={`card-weight-option ${isGift ? "card-weight-option--gift" : ""} ${selected[0] === weight ? "active" : ""}`}
+                  className={`card-weight-option ${isGift ? "card-weight-option--gift" : ""} ${discountPercent > 0 ? "discounted" : ""} ${selected[0] === weight ? "active" : ""}`}
                   onClick={() => setSelected([weight, Number(price)])}
                 >
                   {isGift ? (
                     <>
-                      <strong>{rupees(price)}</strong>
+                      {priceLabel(price)}
                       <span>{displayOptionLabel(weight)}</span>
                     </>
                   ) : (
                     <>
                       <span>{weight}</span>
-                      <strong>{rupees(price)}</strong>
+                      {priceLabel(price)}
                     </>
                   )}
                 </button>

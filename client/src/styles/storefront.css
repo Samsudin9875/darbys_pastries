@@ -304,6 +304,9 @@
     .wishlist-toggle[aria-pressed="true"] svg { fill: currentColor; }
     .menu-card-body { padding: 12px; display: grid; gap: 9px; }
     .product-card-detail-link { display: inline-block; margin: 3px 0 5px; color: var(--red-deep); font-size: .72rem; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+    .menu-top > div { position: relative; width: 100%; }
+    .product-discount-badge { position: absolute; top: 0; right: 0; margin: 0; padding: 3px 6px; border-radius: 999px; background: #eaf7ed; color: #19723b; font-size: .58rem; font-weight: 800; }
+    .card-weight-option del { display: block; color: var(--muted); font-size: .62rem; font-weight: 500; }
     .occasion-section.section { padding-block: clamp(28px, 3vw, 42px); }
     .occasion-section .section-head { margin-bottom: 20px; }
     .occasion-discovery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
@@ -318,6 +321,7 @@
     .occasion-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 10px; }
     .occasion-preview-group h3 { margin: 0; color: var(--ink); font-family: "Poppins", sans-serif; font-size: .78rem; }
     .occasion-preview-group .menu-grid { margin-top: 0; }
+    .occasion-preview-group .menu-item { grid-template-rows: 220px auto; }
     .mobile-section-view-all { display: none; }
     .catalog-filter-toolbar { display: flex; justify-content: flex-end; margin: 0 0 22px; padding: 0; }
     .catalog-filter-toolbar label { display: grid; gap: 5px; color: var(--muted); font-size: .72rem; font-weight: 700; }
@@ -351,6 +355,7 @@
     .product-detail-options button:hover { border-color: var(--red); transform: translateY(-1px); }
     .product-detail-options button.active { border-color: var(--red-deep); background: var(--red-soft); }
     .product-detail-options button span, .product-detail-options button strong { display: block; font-size: .75rem; }
+    .product-detail-options button del { display: block; margin-top: 3px; color: var(--muted); font-size: .68rem; }
     .product-detail-options button strong { margin-top: 3px; color: var(--red-deep); }
     .product-detail-tags { margin-top: 18px; }
     .product-detail-tags h2 { margin: 0 0 4px; }
@@ -391,6 +396,15 @@
     .card-weight-option--gift span { white-space: nowrap; }
     .card-weight-option.active { border-color: var(--red); background: var(--red-soft); }
     .card-weight-option.active span, .card-weight-option.active strong { color: var(--red-deep); }
+    .card-weight-option.discounted { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+    .card-weight-option.discounted span, .card-weight-option.discounted strong, .card-weight-option.discounted del { display: inline; margin: 0; }
+    .card-weight-option.discounted span, .card-weight-option.discounted strong, .card-weight-option.active.discounted span, .card-weight-option.active.discounted strong { color: var(--ink); }
+    .card-weight-option.discounted del { color: var(--red-deep); font-size: .72rem; }
+    .card-weight-option.custom-cake-price { display: flex; flex-wrap: wrap; gap: 5px 8px; min-height: 70px; padding: 10px 12px; border-color: var(--red); background: #fff; color: var(--ink); }
+    .card-weight-option.custom-cake-price span { flex-basis: 100%; color: var(--ink) !important; font-size: .78rem; }
+    .card-weight-option.custom-cake-price del { color: var(--red-deep); font-size: .7rem; }
+    .card-weight-option.custom-cake-price strong, .card-weight-option.active.custom-cake-price strong { color: var(--ink); font-size: .88rem; }
+    .custom-cake-saving { padding: 2px 5px; border-radius: 3px; background: var(--red-deep); color: #fff; font-size: .55rem; font-weight: 800; }
     .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; align-items: center; }
     .add-cart { min-height: 39px; border: 0; border-radius: 8px; padding: 7px 9px; background: var(--red); color: #fff; font-size: .74rem; font-weight: 800; cursor: pointer; }
     .add-cart:hover { background: var(--red-deep); }
@@ -2259,6 +2273,28 @@
       .react-storefront-preview .hero-media { height: auto; min-height: 0; }
       .react-storefront-preview .hero-gallery { height: auto; min-height: 0; aspect-ratio: 1.45 / 1; grid-template-columns: 1fr; grid-template-rows: 1fr; }
       .react-storefront-preview .hero-tile-main { grid-column: 1; grid-row: 1; height: 100%; }
+    }
+
+    @media (max-width: 640px) {
+      .product-detail-modal { align-items: end; padding: 0; }
+      .product-detail-dialog { width: 100%; max-height: 92vh; padding: 12px; border-radius: 20px 20px 0 0; }
+      .product-detail-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; margin: 0; font-size: 1.45rem; }
+      .product-detail-dialog .product-detail-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+      .product-detail-dialog .product-image-stage { aspect-ratio: 4 / 3; }
+      .product-detail-copy { padding: 16px; border-radius: 14px; box-shadow: none; }
+      .product-detail-copy .eyebrow { margin: 0 0 5px; font-size: .65rem; }
+      .product-detail-copy h1 { margin-bottom: 8px; padding-right: 42px; font-size: 1.45rem; }
+      .product-detail-description { margin-bottom: 16px; font-size: .86rem; line-height: 1.5; }
+      .product-detail-options { margin: 16px 0; padding-top: 15px; }
+      .product-detail-options h2 { margin: 0 0 9px; font-size: .92rem; }
+      .product-detail-options > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+      .product-detail-options button { min-width: 0; padding: 9px 10px; }
+      .product-detail-tags { margin-top: 12px; }
+      .product-detail-tags p { font-size: .78rem; }
+      .product-detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+      .product-detail-actions .btn { grid-column: 1 / -1; }
+      .product-detail-actions .btn, .product-detail-cart, .product-detail-wishlist { min-height: 41px; padding: 9px 10px; font-size: .74rem; text-align: center; }
+      .product-detail-note { margin-top: 16px; padding: 10px 11px; font-size: .76rem; line-height: 1.45; }
     }
 
     @media (max-width: 640px) {

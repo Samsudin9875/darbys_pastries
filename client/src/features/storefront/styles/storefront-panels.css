@@ -1,7 +1,7 @@
 .react-storefront-preview .panel-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 900;
   background: rgba(20, 20, 23, .42);
   opacity: 0;
   pointer-events: none;
@@ -16,7 +16,7 @@
 .react-storefront-preview .side-panel {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 1000;
   width: 100%;
   max-width: none;
   height: 100vh;
@@ -40,6 +40,7 @@
 }
 
 .react-storefront-preview .side-panel .panel-header {
+  position: relative;
   flex: 0 0 auto;
   min-height: 96px;
   padding: 16px clamp(20px, 4vw, 52px);
@@ -48,8 +49,13 @@
 }
 
 .react-storefront-preview .panel-heading {
+  position: absolute;
+  left: 50%;
   display: grid;
   gap: 4px;
+  justify-items: center;
+  text-align: center;
+  transform: translateX(-50%);
 }
 
 .react-storefront-preview .panel-brand-home {
@@ -88,6 +94,7 @@
   font-family: "Playfair Display", serif;
   font-size: 1.8rem;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .react-storefront-preview .panel-count {
@@ -120,19 +127,47 @@
   color: var(--red-deep);
 }
 
+/* Keep the close action visible even when a panel header is compacted. */
+.react-storefront-preview .side-panel .panel-close--floating {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 1001;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--red-deep);
+  box-shadow: 0 4px 14px rgba(24, 30, 39, .12);
+  font-size: 1.65rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .react-storefront-preview .side-panel .panel-scroll {
   flex: 1 1 auto;
   width: 100%;
-  max-width: 1280px;
+  max-width: 1120px;
   margin-inline: auto;
   padding: clamp(18px, 3vw, 36px);
 }
 
 .react-storefront-preview .cart-list,
 .react-storefront-preview .wishlist-list {
-  width: min(100%, 1180px);
+  width: min(100%, 1040px);
   margin-inline: auto;
   gap: 12px;
+}
+
+/* Align Cart and Wishlist titles with their compact content column. */
+@media (min-width: 760px) {
+  .react-storefront-preview .side-panel[data-storefront-panel="cart"] .panel-heading,
+  .react-storefront-preview .side-panel[data-storefront-panel="wishlist"] .panel-heading {
+    left: max(36px, calc((100% - 1040px) / 2));
+    justify-items: start;
+    text-align: left;
+    transform: none;
+  }
 }
 
 .react-storefront-preview .cart-item {

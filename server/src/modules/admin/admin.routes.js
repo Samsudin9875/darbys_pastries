@@ -45,6 +45,7 @@ router.put("/site-settings", async (request, response, next) => {
     const themeOptions = request.body?.themeOptions;
     const reviewHighlights = request.body?.reviewHighlights;
     const featuredProducts = request.body?.featuredProducts;
+    const occasionThemeDiscount = request.body?.occasionThemeDiscount;
     if (Array.isArray(giftCategories)) {
       const defaults = [
         ["flowers", "Flowers", "Fresh blooms for every celebration"],
@@ -121,7 +122,8 @@ router.put("/site-settings", async (request, response, next) => {
         const error = new Error("Featured add-on products must be published products in the selected category."); error.status = 400; throw error;
       }
     }
-    if (!hero && !categories && !cakeMenuGroups && !giftCategories && giftsVisible === undefined && !sectionVisibility && !themeOptions && !reviewHighlights && !featuredProducts) { const error = new Error("Nothing to save."); error.status = 400; throw error; }
+    if (occasionThemeDiscount !== undefined && (!Number.isInteger(occasionThemeDiscount) || occasionThemeDiscount < 0 || occasionThemeDiscount > 90)) { const error = new Error("Discount must be a whole number from 0 to 90."); error.status = 400; throw error; }
+    if (!hero && !categories && !cakeMenuGroups && !giftCategories && giftsVisible === undefined && !sectionVisibility && !themeOptions && !reviewHighlights && !featuredProducts && occasionThemeDiscount === undefined) { const error = new Error("Nothing to save."); error.status = 400; throw error; }
     const existing = await SiteSetting.findOne({ key: "homepage" }).lean();
     const value = { ...(existing?.value || {}) };
     if (hero) value.hero = Object.fromEntries(Object.entries(hero).map(([key, value]) => [key, value.trim()]));
@@ -137,6 +139,7 @@ router.put("/site-settings", async (request, response, next) => {
     if (themeOptions) value.themeOptions = themeOptions.map((theme) => theme.trim());
     if (reviewHighlights) value.reviewHighlights = reviewHighlights.map((review) => ({ ...review, quote: review.quote.trim(), name: review.name.trim(), place: review.place.trim() }));
     if (featuredProducts) value.featuredProducts = featuredProducts;
+    if (occasionThemeDiscount !== undefined) value.occasionThemeDiscount = occasionThemeDiscount;
     const setting = await SiteSetting.findOneAndUpdate({ key: "homepage" }, { value }, { upsert: true, new: true, runValidators: true });
     response.json({ data: setting.value });
   } catch (error) { next(error); }

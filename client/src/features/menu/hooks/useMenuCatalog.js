@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { cakeSubcategoryForLegacyKey, labels, mainCategoryForLegacyKey, occasionOptions } from "../data/menuData";
 import { apiUrl } from "../../../utils/apiUrl";
 
+const catalogueCache = new Map();
+
 function mapProduct(product) {
   const variants = Array.isArray(product.variants) ? product.variants : [];
   const priceFor = (label) => variants.find((variant) => variant.label === label)?.price ?? null;
@@ -52,16 +54,23 @@ export default function useMenuCatalog({ filters = {}, enabled = true, limit = 2
     setResult({ products: [], pagination: { page: Number(page), limit: Number(limit), total: 0, pages: 0 }, error: "", loading: true });
     async function loadCatalogue() {
       try {
+        const cached = catalogueCache.get(queryString);
+        if (cached) {
+          setResult(cached);
+          return;
+        }
         const response = await fetch(apiUrl(`/api/products?${queryString}`), { signal: controller.signal, cache: "no-store" });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.message || `Catalogue request failed with ${response.status}`);
         if (!Array.isArray(payload?.data) || !payload?.pagination) throw new Error("Catalogue response is invalid");
-        setResult({
+        const next = {
           products: payload.data.map(mapProduct),
           pagination: payload.pagination,
           error: "",
           loading: false,
-        });
+        };
+        catalogueCache.set(queryString, next);
+        setResult(next);
       } catch (error) {
         if (error.name !== "AbortError") setResult((current) => ({ ...current, products: [], error: error.message, loading: false }));
       }

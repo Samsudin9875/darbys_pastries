@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { SignIn, SignUp } from "@clerk/react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import NotFoundPage from "../pages/NotFoundPage";
 import PolicyPage from "../pages/PolicyPage";
@@ -10,9 +10,14 @@ const HomePage = lazy(() => import("../pages/home/HomePage"));
 const ProductDetailsPage = lazy(() => import("../pages/ProductDetailsPage"));
 
 export default function AppRoutes() {
+  const location = useLocation();
+  const returnTo = new URLSearchParams(location.search).get("returnTo");
+  const safeReturnTo = returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
+  const backgroundLocation = location.state?.backgroundLocation || (location.pathname.startsWith("/products/") && safeReturnTo ? safeReturnTo : null);
+  const productModalOpen = location.pathname.startsWith("/products/") && Boolean(backgroundLocation);
   return (
     <StorefrontStateProvider>
-    <Routes>
+    <Routes location={backgroundLocation || location}>
       <Route path="/" element={<Suspense fallback={<main className="app-message" role="status">Loading storefront…</main>}><HomePage /></Suspense>} />
       <Route path="/category/:category" element={<Suspense fallback={<main className="app-message" role="status">Loading storefront...</main>}><HomePage /></Suspense>} />
       <Route path="/custom-cake" element={<Suspense fallback={<main className="app-message" role="status">Loading custom cake form…</main>}><HomePage /></Suspense>} />
@@ -24,6 +29,7 @@ export default function AppRoutes() {
       <Route path="/preview/react-storefront" element={<Navigate to="/" replace />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    {productModalOpen && <Suspense fallback={null}><ProductDetailsPage /></Suspense>}
     </StorefrontStateProvider>
   );
 }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import ProductCard from "../../features/menu/components/ProductCard";
 import { defaultCakeMenuGroups, getImageFor, mergeCakeMenuGroups, mainCategoryOptions, cakeSubcategoryOptions, occasionOptions } from "../../features/menu/data/menuData";
@@ -57,14 +57,17 @@ const fallbackOnImageError = (event, fallback) => {
 function HomePage() {
   const { category: routeCategory } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoaded: isAuthLoaded, isSignedIn, getToken } = useAuth();
   const [hero, setHero] = useState({ eyebrow: "Handcrafted with love", title: "Freshly Baked Cakes For Every Celebration", description: "Choose from our client-approved cake flavours, desserts, flowers and chocolates.", badge: "Starting from ₹350", image: "101920fbaa29.jpg", imageSecond: "9c4c74910c48.jpg", imageThird: "2a95b9ea83e2.jpg" });
   const [categories, setCategories] = useState(categoryDefaults);
   const [giftCategories, setGiftCategories] = useState(giftCategoryDefaults);
   const [cakeMenuGroups, setCakeMenuGroups] = useState(defaultCakeMenuGroups);
   const [giftsVisible, setGiftsVisible] = useState(true);
+  const [occasionThemeDiscount, setOccasionThemeDiscount] = useState(10);
   const [customCakeSummaryImage, setCustomCakeSummaryImage] = useState("/images/custom-cake-summary.jpg");
   const [query, setQuery] = useState(() => new window.URLSearchParams(window.location.search).get("search") || "");
+  const deferredQuery = useDeferredValue(query);
   const [focusedBrowseView, setFocusedBrowseView] = useState(() => {
     const params = new window.URLSearchParams(window.location.search);
     return window.location.pathname === "/custom-cake"
@@ -110,7 +113,7 @@ function HomePage() {
   const activeFilters = {
     ...Object.fromEntries(Object.entries(catalogFilters).filter(([key, value]) => value && !(key === "sort" && value === "name"))),
     ...(isInitialBestSellers ? { featured: "true" } : {}),
-    ...(query.trim() ? { search: query.trim() } : {}),
+    ...(deferredQuery.trim() ? { search: deferredQuery.trim() } : {}),
   };
   const catalogResult = useMenuCatalog({ filters: activeFilters, limit: showAllProducts ? 24 : 6, page });
   const addOnResult = useMenuCatalog({
@@ -171,9 +174,9 @@ function HomePage() {
     if (params.has("account") || params.has("cart")) {
       params.delete("account");
       params.delete("cart");
-      window.history.replaceState({}, "", `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`);
+      navigate(`${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`, { replace: true });
     }
-  }, []);
+  }, [location.hash, location.pathname, navigate]);
 
   useEffect(() => {
     if (window.location.pathname !== "/custom-cake") return undefined;
@@ -206,6 +209,7 @@ function HomePage() {
       if (payload?.data?.sectionVisibility) setSectionVisibility((current) => ({ ...current, ...payload.data.sectionVisibility }));
       if (Array.isArray(payload?.data?.reviewHighlights)) setReviewHighlights(payload.data.reviewHighlights.slice(0, 3));
       if (payload?.data?.featuredProducts) setFeaturedAddOns(payload.data.featuredProducts);
+      if (Number.isInteger(payload?.data?.occasionThemeDiscount)) setOccasionThemeDiscount(payload.data.occasionThemeDiscount);
     }).catch(() => {});
   }, []);
 
@@ -228,9 +232,17 @@ function HomePage() {
     });
     if (query.trim()) params.set("search", query.trim());
     if (showAllProducts && page > 1) params.set("page", String(page));
-    const next = `${window.location.pathname}${params.size ? `?${params}` : ""}${window.location.hash}`;
-    window.history.replaceState({}, "", next);
-  }, [catalogFilters, query, showAllProducts, page]);
+    const next = `${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`;
+    if (next !== `${location.pathname}${location.search}${location.hash}`) navigate(next);
+  }, [catalogFilters, location.hash, location.pathname, location.search, navigate, page, query, showAllProducts]);
+
+  useEffect(() => {
+    const params = new window.URLSearchParams(location.search);
+    setQuery(params.get("search") || "");
+    setPage(Math.max(1, Number(params.get("page")) || 1));
+    setCatalogFilters({ mainCategory: routeCategory || params.get("mainCategory") || "", cakeSubcategory: params.get("cakeSubcategory") || "", occasion: params.get("occasion") || "", theme: params.get("theme") || "", hasOccasionOrTheme: params.get("hasOccasionOrTheme") || "", minPrice: params.get("minPrice") || "", maxPrice: params.get("maxPrice") || "", sort: params.get("sort") || "name", available: params.get("available") || "" });
+    setShowAllProducts(Boolean(routeCategory) || ["mainCategory", "cakeSubcategory", "occasion", "theme", "hasOccasionOrTheme", "minPrice", "maxPrice", "search", "sort", "available"].some((key) => params.has(key)));
+  }, [location.search, routeCategory]);
 
   useEffect(() => {
     if (!routeCategory || !giftCategories.some((item) => item.action === routeCategory)) return;
@@ -257,7 +269,7 @@ function HomePage() {
 
   const openMenuToFilter = (filter) => {
     if (filter.kind === "custom") {
-      window.location.assign("/custom-cake");
+      navigate("/custom-cake");
       return;
     }
     setFocusedBrowseView("products");
@@ -293,7 +305,7 @@ function HomePage() {
       setQuery("");
       setShowAllProducts(false);
       if (routeCategory) navigate("/", { replace: true });
-      window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}#${sectionId}`);
+      navigate(`${location.pathname}${location.search}#${sectionId}`);
       window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
       return;
     }
@@ -348,7 +360,7 @@ function HomePage() {
 
   const selectCakeMenuItem = (item) => {
     if (item.action === "custom") {
-      window.location.assign("/custom-cake");
+      navigate("/custom-cake");
       return;
     }
     openMenuToFilter({ kind: "subcategory", value: item.action, label: item.label });
@@ -549,7 +561,7 @@ function HomePage() {
             <div className="menu-grid">
               {visibleProducts.length ? (
                 visibleProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />
+                  <ProductCard key={product.id} product={product} discountPercent={(catalogFilters.occasion || catalogFilters.theme || catalogFilters.hasOccasionOrTheme) ? occasionThemeDiscount : 0} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />
                 ))
               ) : (
                 !catalogResult.loading && <div className="empty-menu">No matching products found. Try another search or category.</div>
@@ -574,7 +586,7 @@ function HomePage() {
               </div>}
               {occasionPreviews.length > 0 && <div className="occasion-preview-group">
                 <div className="occasion-preview-heading"><h3>Popular occasion cakes</h3><button type="button" className="browse-all-cakes" onClick={browseAllOccasionThemeCakes}>View All <span aria-hidden="true">→</span></button></div>
-                {renderProductCards(occasionPreviews.map(({ product }) => product), "occasion")}
+                <div className="menu-grid">{occasionPreviews.map(({ product }) => <ProductCard key={`occasion-${product.id}`} product={product} discountPercent={occasionThemeDiscount} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />)}</div>
               </div>}
             </div>
           </div>
@@ -582,7 +594,7 @@ function HomePage() {
 
         {sectionVisibility.addOns && focusedBrowseView !== "custom" && renderAddOnSection()}
 
-        {isCustomCakePage && focusedBrowseView === "custom" && <section className="custom-banner" id="custom">
+        {(isCustomCakePage || focusedBrowseView === "home") && <section className="custom-banner" id="custom">
           <div className="container">
             <div className="custom-builder-head"><div><p className="eyebrow">Build it your way</p><h2>Custom Cake Builder</h2></div><div className="custom-builder-meta"><p className="lede">Choose every detail, see the estimate update instantly, then send one complete order request on WhatsApp.</p></div></div>
             {builder.legacyBuilder === true ? (<form className="custom-builder-shell" onSubmit={submitBuilder} noValidate>
@@ -699,9 +711,9 @@ function HomePage() {
       <footer id="footer-contact">
         <div className="footer-trust"><div className="container footer-trust-grid"><div className="footer-trust-item"><span><strong>Same Day Delivery</strong><span>Selected cakes & nearby areas</span></span></div><div className="footer-trust-item"><span><strong>Freshly Baked</strong><span>Prepared with care for every order</span></span></div><div className="footer-trust-item"><span><strong>Secure Payments</strong><span>Flexible payment options available</span></span></div></div></div>
         <div className="container footer-main"><div className="footer-grid">
-          <section><div className="footer-brand"><img src={asset("9ce04fb5e8b4.png")} alt="Darby's Pastries logo" /><div><strong>Darby's Pastries</strong><span>FRESHLY BAKED</span></div></div><p className="footer-tagline">Fresh cakes for everyday moments and memorable celebrations.</p><p className="footer-address">No. 52/1, Maheshwaramma Temple Road, Opp. Saraswathinagar, Mahadevapura Village and Post, Bengaluru - 560048</p><div className="footer-contact-list"><a className="footer-contact-link" href="https://wa.me/919835886863?text=Hello%20Darby%27s%20Pastries" target="_blank" rel="noreferrer">WhatsApp 9835886863</a><a className="footer-contact-link" href="tel:+919835886863">Call 9835886863</a><span className="footer-contact-link">Daily · 8 AM - 12 PM</span></div><div className="footer-contact-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.6-1.7a11.8 11.8 0 0 0 5.3 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.3-6.1-3.5-8.3ZM12.1 21.6a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.9 1 1-3.8-.3-.4a9.8 9.8 0 1 1 8.6 4.8Zm5.4-7.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.3-.6.1a8 8 0 0 1-2.5-1.5 9.2 9.2 0 0 1-1.7-2.1c-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.2 0-.4 0-.5l-1-2.3c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.7.4s-1 1-1 2.5 1 2.9 1.2 3.1a11.3 11.3 0 0 0 4.4 4 10.7 10.7 0 0 0 1.5.6c.6.2 1.1.2 1.5.1.5-.1 1.8-.7 2-1.4s.3-1.3.2-1.4-.3-.2-.6-.4Z" /></svg></a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.4" cy="6.7" r="1.15" fill="currentColor"/></svg></a></div></section>
+          <section><div className="footer-brand"><img src={asset("9ce04fb5e8b4.png")} alt="Darby's Pastries logo" /><div><strong>Darby's Pastries</strong><span>FRESHLY BAKED</span></div></div><p className="footer-tagline">Fresh cakes for everyday moments and memorable celebrations.</p><p className="footer-address">No. 52/1, Maheshwaramma Temple Road, Opp. Saraswathinagar, Mahadevapura Village and Post, Bengaluru - 560048</p><div className="footer-contact-list"><a className="footer-contact-link" href="https://wa.me/919835888631?text=Hello%20Darby%27s%20Pastries" target="_blank" rel="noreferrer">WhatsApp 98358 88631</a><a className="footer-contact-link" href="tel:+919835888631">Call 98358 88631</a><span className="footer-contact-link">Daily · 8 AM - 12 PM</span></div><div className="footer-contact-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.6-1.7a11.8 11.8 0 0 0 5.3 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.3-6.1-3.5-8.3ZM12.1 21.6a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.9 1 1-3.8-.3-.4a9.8 9.8 0 1 1 8.6 4.8Zm5.4-7.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.3-.6.1a8 8 0 0 1-2.5-1.5 9.2 9.2 0 0 1-1.7-2.1c-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.2 0-.4 0-.5l-1-2.3c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.7.4s-1 1-1 2.5 1 2.9 1.2 3.1a11.3 11.3 0 0 0 4.4 4 10.7 10.7 0 0 0 1.5.6c.6.2 1.1.2 1.5.1.5-.1 1.8-.7 2-1.4s.3-1.3.2-1.4-.3-.2-.6-.4Z" /></svg></a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.4" cy="6.7" r="1.15" fill="currentColor"/></svg></a></div></section>
           <section className="footer-column"><h3>Quick Links</h3><nav><a href="#home">Home</a><a href="#menu">Menu</a><a href="#custom">Custom Cakes</a><a href="#reviews">Reviews</a><a href="#footer-contact">Contact</a></nav></section>
-          <section className="footer-column"><h3>Cake Categories</h3><nav><a href="#menu">Birthday Cakes</a><a href="#menu">Anniversary Cakes</a><a href="#menu">Photo Cakes</a><a href="#custom">Designer Cakes</a><a href="#menu">Eggless Cakes</a></nav></section>
+          <section className="footer-column"><h3>Cake Categories</h3><nav><Link to="/?mainCategory=cakes&cakeSubcategory=classic#menu">Classic Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=chocolate#menu">Chocolate Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=fruit#menu">Fruit Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=special#menu">Premium and Special Cake</Link><Link to="/?mainCategory=cakes&cakeSubcategory=photo#menu">Photo Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=desserts#menu">Desserts</Link></nav></section>
           <section className="footer-column"><h3>Customer Care</h3><nav>{[["about-us", "About Us"], ["contact-us", "Contact Us"], ["shipping-delivery", "Shipping & Delivery"], ["returns-refunds", "Returns & Refunds"], ["cancellation", "Cancellation Policy"], ["coupons", "Coupon & Discount Policy"], ["privacy", "Privacy Policy"], ["terms", "Terms & Conditions"], ["cookies", "Cookie Notice"]].map(([slug, label]) => <button className="footer-text-link" type="button" key={slug} onClick={() => setCustomerCarePage(slug)}>{label}</button>)}</nav></section>
           <section className="footer-column footer-newsletter-card"><p className="footer-newsletter-kicker">Darby's insider list</p><h3>Fresh bakes, first dibs.</h3><p className="footer-newsletter-copy">Seasonal flavours, celebration ideas and special offers—sent only when there is something worth sharing.</p><form className="footer-newsletter-form" onSubmit={(event) => { event.preventDefault(); setDialog("How to Order"); }}><div className="footer-newsletter-field"><input type="email" aria-label="Email address" placeholder="Your email address" required /><button type="submit">Join list</button></div></form><p className="footer-newsletter-note">We send updates via Email & WhatsApp</p><div className="footer-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.6-1.7a11.8 11.8 0 0 0 5.3 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.3-6.1-3.5-8.3ZM12.1 21.6a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.9 1 1-3.8-.3-.4a9.8 9.8 0 1 1 8.6 4.8Zm5.4-7.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.3-.6.1a8 8 0 0 1-2.5-1.5 9.2 9.2 0 0 1-1.7-2.1c-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.2 0-.4 0-.5l-1-2.3c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.7.4s-1 1-1 2.5 1 2.9 1.2 3.1a11.3 11.3 0 0 0 4.4 4 10.7 10.7 0 0 0 1.5.6c.6.2 1.1.2 1.5.1.5-.1 1.8-.7 2-1.4s.3-1.3.2-1.4-.3-.2-.6-.4Z" /></svg></a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.4" cy="6.7" r="1.15" fill="currentColor"/></svg></a></div></section>
         </div><div className="footer-bottom"><span>© 2026 <strong>Darby's Pastries</strong>. All rights reserved.</span><span>Made with love in Bangalore</span></div></div>
