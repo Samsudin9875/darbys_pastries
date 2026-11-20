@@ -1,0 +1,12 @@
+# Darby's Pastries
+
+Darby's Pastries is a Bengaluru bakery for custom cakes, celebration cakes, desserts, flowers, chocolates, cake accessories, and gift hampers.
+
+## Key routes
+
+- https://darbyspastries.com/ — storefront and cake catalogue
+- https://darbyspastries.com/category/cakes — cakes
+- https://darbyspastries.com/custom-cake — custom cake enquiries
+- https://darbyspastries.com/policies/:slug — customer policies
+
+For orders and availability, contact Darby's Pastries through the contact options on the website.

@@ -28,8 +28,12 @@ export default function useCustomCakeBuilder() {
     return Math.round(base + (shapeSurcharge[builder.shape] || 0) + (builder.eggPreference === "Eggless" ? 50 : 0));
   }, [builder]);
   const advanceAmount = Math.round(estimate / 2);
-  const updateBuilderField = (field, value) => setBuilder((current) => ({ ...current, [field]: value }));
-  const isValid = () => Boolean(builder.occasion && builder.flavour && builder.weight && builder.shape && builder.eggPreference && builder.deliveryType && builder.deliveryDate && builder.deliveryTime && builder.pincode && builder.customerName && builder.phone && (builder.deliveryType !== "Home Delivery" || builder.address));
+  const updateBuilderField = (field, value) => setBuilder((current) => ({
+    ...current,
+    [field]: value,
+    ...(field === "deliveryType" && value === "Store Pickup" ? { deliveryTime: "" } : {}),
+  }));
+  const isValid = () => Boolean(builder.occasion && builder.flavour && builder.weight && builder.shape && builder.eggPreference && builder.deliveryType && builder.deliveryDate && builder.customerName && builder.phone && (builder.deliveryType !== "Home Delivery" || (builder.deliveryTime && builder.pincode && builder.address)));
 
   const submitBuilder = async (event) => {
     event.preventDefault();
@@ -38,7 +42,7 @@ export default function useCustomCakeBuilder() {
       "Hello Darby's Pastries, I'd like to order a custom cake.", `Occasion: ${builder.occasion}`, `Flavour: ${builder.flavour}`,
       `Weight: ${builder.weight} kg`, `Shape: ${builder.shape}`, `Egg preference: ${builder.eggPreference}`,
       `Cake message: ${builder.cakeMessage || "Not specified"}`, `Delivery type: ${builder.deliveryType}`,
-      `Delivery date: ${builder.deliveryDate}`, `Delivery time: ${builder.deliveryTime}`, `Pincode: ${builder.pincode}`,
+      `Delivery date: ${builder.deliveryDate}`, ...(builder.deliveryType === "Home Delivery" ? [`Delivery time: ${builder.deliveryTime}`, `Pincode: ${builder.pincode}`] : []),
       `Address: ${builder.deliveryType === "Home Delivery" ? builder.address : "Store pickup"}`, `Customer name: ${builder.customerName}`,
       `WhatsApp/mobile: ${builder.phone}`, `Estimated total: ${rupees(estimate)}`, `50% advance: ${rupees(advanceAmount)}`,
       "Please confirm final availability, delivery charges and final price on WhatsApp.",

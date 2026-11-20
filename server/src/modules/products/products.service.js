@@ -124,7 +124,7 @@ async function findProducts({ page = "1", limit = "24", sort = "name", minPrice,
   const max = parseBound(maxPrice, "maximum price");
   if (!Number.isInteger(pageNumber) || pageNumber < 1
     || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50
-    || !["name", "price-asc", "price-desc"].includes(sort)
+    || !["name", "newest", "price-asc", "price-desc"].includes(sort)
     || (available !== undefined && !["true", "false"].includes(String(available)))
     || (min !== null && max !== null && min > max)) {
     const error = new Error("Choose valid product listing options.");
@@ -151,7 +151,7 @@ async function findProducts({ page = "1", limit = "24", sort = "name", minPrice,
   if (available === "false") pipeline.push({ $match: { _hasAvailableVariant: false } });
   if (min !== null || max !== null) pipeline.push({ $match: { _hasPriceInRange: true } });
   pipeline.push(
-    { $sort: sort === "name" ? { name: 1, _id: 1 } : { _minPrice: sort === "price-asc" ? 1 : -1, _id: 1 } },
+    { $sort: sort === "name" ? { name: 1, _id: 1 } : sort === "newest" ? { createdAt: -1, _id: -1 } : { _minPrice: sort === "price-asc" ? 1 : -1, _id: 1 } },
     { $facet: {
       products: [{ $skip: (pageNumber - 1) * pageSize }, { $limit: pageSize }, { $project: { _listingVariants: 0, _activeVariants: 0, _minPrice: 0, _hasAvailableVariant: 0, _hasPriceInRange: 0 } }],
       count: [{ $count: "total" }],

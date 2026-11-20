@@ -59,7 +59,7 @@ export default function useMenuCatalog({ filters = {}, enabled = true, limit = 2
           setResult(cached);
           return;
         }
-        const response = await fetch(apiUrl(`/api/products?${queryString}`), { signal: controller.signal, cache: "no-store" });
+        const response = await fetch(apiUrl(`/api/products?${queryString}`), { signal: controller.signal });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.message || `Catalogue request failed with ${response.status}`);
         if (!Array.isArray(payload?.data) || !payload?.pagination) throw new Error("Catalogue response is invalid");

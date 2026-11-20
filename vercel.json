@@ -4,7 +4,7 @@
   "outputDirectory": "client/dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!robots\\.txt|sitemap\\.xml|llms\\.txt).*)",
       "destination": "/index.html"
     }
   ]

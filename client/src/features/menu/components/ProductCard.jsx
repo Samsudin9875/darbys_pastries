@@ -48,6 +48,7 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
   const cartId = `${product.category || "product"}:${product.name}:${selectedVariantId || selected[0] || "default"}`;
   const inCart = cart.some((entry) => entry.cartId === cartId);
   const isGift = ["flowers", "chocolates", "accessories", "gift-hampers"].includes(product.category);
+  const isSingleCustomOption = product.category === "custom" && options.length === 1;
   const [zoomed, setZoomed] = useState(false);
   const fallbackImage = asset(fallbackImageByCategory[product.category] || "101920fbaa29.jpg");
   const imageSource = product.image || fallbackImage;
@@ -78,12 +79,14 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
             <span className="category-tag">{product.subcategory || product.categoryLabel || labels[product.category] || product.category}</span>
             {discountPercent > 0 && <span className="product-discount-badge">{discountPercent}% OFF</span>}
             <h3>{product.name}</h3>
-            {showDetailsLink && product.id && (() => {
-              const returnTo = `${location.pathname}${location.search}${location.hash}`;
-              const query = new URLSearchParams({ returnTo, scrollY: String(window.scrollY), discount: String(discountPercent) });
-              return <Link className="product-card-detail-link" to={`/products/${product.id}?${query}`} state={{ returnTo, scrollY: window.scrollY, backgroundLocation: location }}>View details</Link>;
-            })()}
-            <span className="egg-badge">{product.category === "flowers" ? "Fresh bouquet" : ["chocolates", "gift-hampers"].includes(product.category) ? "Gift ready" : "Freshly baked"}</span>
+            <div className="product-card-meta">
+              {showDetailsLink && product.id && (() => {
+                const returnTo = `${location.pathname}${location.search}${location.hash}`;
+                const query = new URLSearchParams({ returnTo, scrollY: String(window.scrollY), discount: String(discountPercent) });
+                return <Link className="product-card-detail-link" to={`/products/${product.id}?${query}`} state={{ returnTo, scrollY: window.scrollY, backgroundLocation: location }}>View details</Link>;
+              })()}
+              <span className="egg-badge">{product.category === "flowers" ? "Fresh bouquet" : ["chocolates", "gift-hampers"].includes(product.category) ? "Gift ready" : "Freshly baked"}</span>
+            </div>
           </div>
         </div>
 
@@ -91,6 +94,11 @@ export default function ProductCard({ product, wishlist, cart, toggleWishlist, a
           <div className="item-price">
             <span>Price</span>
             <strong>{rupees(currentPrice)}</strong>
+          </div>
+        ) : isSingleCustomOption ? (
+          <div className="single-custom-price">
+            <span>{selected[0]}</span>
+            <div>{priceLabel(originalPrice)}</div>
           </div>
         ) : isCake ? (
           <div className="card-weight-picker">

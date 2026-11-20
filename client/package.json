@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "optimize:images": "node scripts/optimize-images.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.17.5",
@@ -21,6 +22,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.0",
+    "sharp": "^0.34.5",
     "vite": "^8.0.0"
   }
 }

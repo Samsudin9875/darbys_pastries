@@ -98,7 +98,7 @@ function StorefrontPanels({
         inert={panel !== "cart"}
       >
         <div className="panel-header">
-          <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("9ce04fb5e8b4.png")} alt="" /><span>Darby's<br />Pastries</span></button>
+          <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("darby-logo.webp")} alt="" /><span>Darby's<br />Pastries</span></button>
           <div className="panel-heading">
             <span className="panel-kicker">ORDER OVERVIEW</span>
             <h2 id="cartPanelTitle">Your Cart <span className="panel-count">{cartCount} {cartCount === 1 ? "item" : "items"}</span></h2>
@@ -161,7 +161,7 @@ function StorefrontPanels({
         inert={panel !== "wishlist"}
       >
         <div className="panel-header">
-          <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("9ce04fb5e8b4.png")} alt="" /><span>Darby's<br />Pastries</span></button>
+          <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("darby-logo.webp")} alt="" /><span>Darby's<br />Pastries</span></button>
           <div className="panel-heading">
             <span className="panel-kicker">SAVED FOR LATER</span>
             <h2 id="wishlistPanelTitle">Your Wishlist <span className="panel-count">{wishlistCount} {wishlistCount === 1 ? "item" : "items"}</span></h2>
@@ -206,7 +206,7 @@ function StorefrontPanels({
         inert={panel === "account" ? undefined : true}
       >
         <div className="panel-header">
-          <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("9ce04fb5e8b4.png")} alt="" /><span>Darby's<br />Pastries</span></button>
+          <button className="panel-brand-home" type="button" onClick={goHome} aria-label="Go to Darby's Pastries home"><img src={asset("darby-logo.webp")} alt="" /><span>Darby's<br />Pastries</span></button>
           <div className="panel-heading">
             <span className="panel-kicker">CUSTOMER PROFILE</span>
             <h2 id="accountPanelTitle">My Account</h2>

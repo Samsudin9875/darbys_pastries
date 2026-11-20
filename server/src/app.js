@@ -59,7 +59,15 @@ app.use("/api/custom-cakes", customCakeRoutes);
 app.use("/api/site-settings", siteSettingsRoutes);
 app.use("/api", platformRoutes);
 const distDirectory = path.resolve(__dirname, "../../client/dist");
-app.use(express.static(distDirectory, { index: false, maxAge: nodeEnv === "production" ? "1h" : 0 }));
+app.use(express.static(distDirectory, {
+  index: false,
+  maxAge: nodeEnv === "production" ? "1h" : 0,
+  setHeaders: (response, filePath) => {
+    if (nodeEnv === "production" && /[\\/]assets[\\/]/.test(filePath)) {
+      response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
+}));
 app.get("*", (request, response, next) => {
   if (request.path.startsWith("/api/")) return next();
   response.sendFile(path.join(distDirectory, "index.html"), error => error ? next(error) : undefined);

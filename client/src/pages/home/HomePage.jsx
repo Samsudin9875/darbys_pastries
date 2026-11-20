@@ -1,12 +1,10 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import ProductCard from "../../features/menu/components/ProductCard";
-import { defaultCakeMenuGroups, getImageFor, mergeCakeMenuGroups, mainCategoryOptions, cakeSubcategoryOptions, occasionOptions } from "../../features/menu/data/menuData";
+import { defaultCakeMenuGroups, getImageFor, mergeCakeMenuGroups, mainCategoryOptions, cakeSubcategoryOptions } from "../../features/menu/data/menuData";
 import useMenuCatalog from "../../features/menu/hooks/useMenuCatalog";
-import StorefrontPanels from "../../features/storefront/components/StorefrontPanels";
-import AdminPanel from "../../features/admin/components/AdminPanel";
 import "../../features/storefront/styles/storefront-panels.css";
 import useCart from "../../features/cart/hooks/useCart";
 import useWishlist from "../../features/wishlist/hooks/useWishlist";
@@ -14,6 +12,9 @@ import useCustomCakeBuilder, { flavourRates, shapeSurcharge } from "../../featur
 import { asset, responsiveImageSrcSet, rupees, whatsappOrderLink } from "../../utils/storefrontUtils";
 import { apiUrl } from "../../utils/apiUrl";
 import { policyPages } from "../PolicyPage";
+
+const StorefrontPanels = lazy(() => import("../../features/storefront/components/StorefrontPanels"));
+const AdminPanel = lazy(() => import("../../features/admin/components/AdminPanel"));
 
 const categoryDefaults = [
   { id: "classic", label: "Classic Cakes", detail: "Black Forest Classic, White Forest, Vanilla Truffle", image: "", action: "classic" },
@@ -95,7 +96,6 @@ function HomePage() {
       available: params.get("available") || "",
     };
   });
-  const [themeOptions, setThemeOptions] = useState([]);
   const [sectionVisibility, setSectionVisibility] = useState({ bestSellers: true, occasionTheme: true, addOns: true, reviews: true });
   const [reviewHighlights, setReviewHighlights] = useState(defaultReviewHighlights);
   const [featuredAddOns, setFeaturedAddOns] = useState(null);
@@ -119,12 +119,12 @@ function HomePage() {
   const addOnResult = useMenuCatalog({
     filters: { mainCategory: "flowers,chocolates,accessories,gift-hampers" },
     enabled: showFlowersAndChocolates,
-    limit: 40,
+    limit: 8,
   });
   const occasionProductsResult = useMenuCatalog({
-    filters: { mainCategory: "cakes", hasOccasionOrTheme: "true" },
+    filters: { mainCategory: "cakes", hasOccasionOrTheme: "true", sort: "newest" },
     enabled: sectionVisibility.occasionTheme || focusedBrowseView === "occasion",
-    limit: 50,
+    limit: 4,
   });
   const visibleProducts = catalogResult.products;
   const addOnProducts = ["flowers", "chocolates", "accessories", "gift-hampers"].flatMap((category) => (
@@ -134,7 +134,7 @@ function HomePage() {
         : addOnResult.products.filter((product) => product.mainCategory === category).slice(0, 2)
       : []
   ));
-  const themeNames = themeOptions;
+  const themeNames = ["Theme"];
   const occasionPreviews = occasionProductsResult.products
     .filter((product) => product.occasionIds.length > 0 || product.themes.length > 0)
     .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt))
@@ -179,13 +179,16 @@ function HomePage() {
   }, [location.hash, location.pathname, navigate]);
 
   useEffect(() => {
-    if (window.location.pathname !== "/custom-cake") return undefined;
-    const timer = window.setTimeout(() => document.getElementById("custom")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    if (location.pathname === "/custom-cake") {
+      setFocusedBrowseView("custom");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+    setFocusedBrowseView((current) => current === "custom" ? "home" : current);
+  }, [location.pathname]);
 
   useEffect(() => {
-    fetch(apiUrl("/api/site-settings"), { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((payload) => {
+    fetch(apiUrl("/api/site-settings")).then((response) => response.ok ? response.json() : null).then((payload) => {
       if (payload?.data?.hero) setHero((current) => ({
         ...current,
         ...payload.data.hero,
@@ -211,18 +214,6 @@ function HomePage() {
       if (payload?.data?.featuredProducts) setFeaturedAddOns(payload.data.featuredProducts);
       if (Number.isInteger(payload?.data?.occasionThemeDiscount)) setOccasionThemeDiscount(payload.data.occasionThemeDiscount);
     }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(apiUrl("/api/products/facets"), { signal: controller.signal, cache: "no-store" })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.message || "Product filters could not be loaded.");
-        setThemeOptions((payload.data?.themes || []).map((item) => item.value).filter(Boolean));
-      })
-      .catch((error) => { if (error.name !== "AbortError") setThemeOptions([]); });
-    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -269,6 +260,8 @@ function HomePage() {
 
   const openMenuToFilter = (filter) => {
     if (filter.kind === "custom") {
+      setFocusedBrowseView("custom");
+      setMobileNavOpen(false);
       navigate("/custom-cake");
       return;
     }
@@ -360,6 +353,8 @@ function HomePage() {
 
   const selectCakeMenuItem = (item) => {
     if (item.action === "custom") {
+      setFocusedBrowseView("custom");
+      setMobileNavOpen(false);
       navigate("/custom-cake");
       return;
     }
@@ -389,7 +384,7 @@ function HomePage() {
     <section className="add-ons-section section" id="flowers-chocolates" aria-labelledby="flowersChocolatesTitle">
       <div className="container">
         <div className="section-head"><div><p className="eyebrow">Thoughtful finishing touches</p><h2 id="flowersChocolatesTitle">Flowers, Chocolates &amp; Gifts</h2></div><button type="button" className="mobile-section-view-all" onClick={browseAllAddOns}>View All <span aria-hidden="true">→</span></button><p className="lede">Fresh blooms, sweet gifts and celebration essentials.</p></div>
-        <div className="occasion-links add-on-category-links">{giftCategories.filter((category) => isGiftCategoryActive(category.id) && (category.id !== "gift-hampers" || giftsVisible)).map((category) => <button className="btn btn-secondary" type="button" key={category.id} onClick={() => openMenuToFilter({ kind: "category", value: category.action, label: category.label })}>{category.label} · View All</button>)}</div>
+        <div className="add-on-filter-row"><div className="occasion-links add-on-category-links">{giftCategories.filter((category) => isGiftCategoryActive(category.id) && (category.id !== "gift-hampers" || giftsVisible)).map((category) => <button className="btn btn-secondary" type="button" key={category.id} onClick={() => openMenuToFilter({ kind: "category", value: category.action, label: category.label })}>{category.label}</button>)}</div><button className="browse-all-cakes add-on-view-all" type="button" onClick={browseAllAddOns}>View All <span aria-hidden="true">→</span></button></div>
         {addOnProducts.length > 0 && renderProductCards(addOnProducts.slice(0, 8), "add-on")}
         {!addOnProducts.length && <div className="empty-menu" role={addOnResult.loading ? "status" : undefined}>{addOnResult.loading ? "Loading featured products…" : "Featured products will appear here when available."}</div>}
       </div>
@@ -422,7 +417,7 @@ function HomePage() {
   return (
     <div className="react-storefront-preview">
       <header className="site-nav">
-        <div className="container header-main">
+        <div className={`container header-main ${mobileNavOpen ? "menu-open" : ""}`}>
           <button className="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((value) => !value)}>
             <span />
             <span />
@@ -430,7 +425,7 @@ function HomePage() {
           </button>
 
           <a className="brand-link" href="/" aria-label="Darby's Pastries home" onClick={() => setMobileNavOpen(false)}>
-            <img className="brand-logo" src={asset("9ce04fb5e8b4.png")} alt="Darby's Pastries logo" />
+            <img className="brand-logo" src={asset("darby-logo.webp")} alt="Darby's Pastries logo" loading="eager" decoding="async" />
             <span className="brand-wordmark">
               <span className="brand-name">DARBY'S</span>
               <span className="brand-type">PASTRIES</span>
@@ -483,19 +478,20 @@ function HomePage() {
 
         <div className="nav-bar">
           <div className="container nav-inner">
+            <div className={`mobile-nav-backdrop ${mobileNavOpen ? "open" : ""}`} onClick={() => setMobileNavOpen(false)} aria-hidden="true" />
             <nav className={`nav-links ${mobileNavOpen ? "open" : ""}`} aria-label="Main navigation">
-              <div className="mobile-drawer-head"><strong>Browse Darby's</strong><button type="button" onClick={() => setMobileNavOpen(false)}>×</button></div>
+              <div className="mobile-drawer-head"><strong>Browse Darby's</strong><button className="mobile-drawer-close" type="button" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation menu">×</button></div>
               <div className="nav-item"><a className="nav-link" href="/" onClick={() => setMobileNavOpen(false)}>Home</a></div>
-              <div className="nav-item cakes-nav"><button type="button" className="nav-link">Cakes <span aria-hidden="true">⌄</span></button><div className="cakes-dropdown">{renderCakeMenuGroups()}</div></div>
               <div className="nav-item"><button type="button" className="nav-link" onClick={() => scrollToSection("shop-by-occasion")}>Shop by Occasion</button></div>
+              <div className="nav-item cakes-nav"><button type="button" className="nav-link">Cakes <span aria-hidden="true">⌄</span></button><div className="cakes-dropdown">{renderCakeMenuGroups()}</div></div>
               {giftCategories.map((item) => <div className="nav-item" key={item.id}><Link className="nav-link" to={`/category/${item.action}`} onClick={() => setMobileNavOpen(false)}>{item.label}</Link></div>)}
               <div className="nav-item"><button type="button" className="nav-link" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button></div>
               <div className="nav-item"><a className="nav-link" href="#footer-contact" onClick={() => setMobileNavOpen(false)}>Contact</a></div>
             </nav>
             <nav className="legacy-desktop-nav" aria-label="Main navigation">
               <a href="/">Home</a>
-              <div className="cakes-nav"><button type="button">Cakes <span aria-hidden="true">⌄</span></button><div className="cakes-dropdown">{renderCakeMenuGroups()}</div></div>
               <button type="button" onClick={() => scrollToSection("shop-by-occasion")}>Shop by Occasion</button>
+              <div className="cakes-nav"><button type="button">Cakes <span aria-hidden="true">⌄</span></button><div className="cakes-dropdown">{renderCakeMenuGroups()}</div></div>
               {giftCategories.map((item) => <Link key={item.id} to={`/category/${item.action}`}>{item.label}</Link>)}
               <button type="button" onClick={() => openMenuToFilter({ kind: "bestseller", label: "Best Sellers" })}>Best Sellers</button>
               <a href="#footer-contact">Contact</a>
@@ -521,9 +517,9 @@ function HomePage() {
             </div>
             <div className="hero-media">
               <div className="hero-gallery">
-                <figure className="hero-tile hero-tile-main"><img className="hero-photo" src={asset(hero.image)} srcSet={responsiveImageSrcSet(asset(hero.image))} sizes="(max-width: 900px) 100vw, 50vw" alt="Rich chocolate celebration cake" decoding="async" fetchPriority="high" /><figcaption>Chocolate Celebration Cake</figcaption></figure>
-                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageSecond)} srcSet={responsiveImageSrcSet(asset(hero.imageSecond))} sizes="(max-width: 900px) 45vw, 20vw" alt="Black Forest birthday cake" decoding="async" /><figcaption>Birthday Cake</figcaption></figure>
-                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageThird)} srcSet={responsiveImageSrcSet(asset(hero.imageThird))} sizes="(max-width: 900px) 45vw, 20vw" alt="Designer cake" decoding="async" /><figcaption>Designer Cake</figcaption></figure>
+                <figure className="hero-tile hero-tile-main"><img className="hero-photo" src={asset(hero.image)} srcSet={responsiveImageSrcSet(asset(hero.image))} sizes="(max-width: 900px) 100vw, 50vw" alt="Rich chocolate celebration cake" loading="eager" decoding="async" fetchPriority="high" /><figcaption>Chocolate Celebration Cake</figcaption></figure>
+                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageSecond)} srcSet={responsiveImageSrcSet(asset(hero.imageSecond))} sizes="(max-width: 900px) 45vw, 20vw" alt="Black Forest birthday cake" loading="eager" decoding="async" /><figcaption>Birthday Cake</figcaption></figure>
+                <figure className="hero-tile hero-tile-small"><img className="hero-photo" src={asset(hero.imageThird)} srcSet={responsiveImageSrcSet(asset(hero.imageThird))} sizes="(max-width: 900px) 45vw, 20vw" alt="Designer cake" loading="eager" decoding="async" /><figcaption>Designer Cake</figcaption></figure>
               </div>
               <button className="hero-badge" type="button" onClick={browseAllCakes} aria-label="Browse cakes starting from 350 rupees">Starting from ₹350 <span aria-hidden="true">→</span></button>
             </div>
@@ -573,19 +569,10 @@ function HomePage() {
 
         {((focusedBrowseView === "home" && sectionVisibility.occasionTheme) || focusedBrowseView === "occasion") && <section className="occasion-section section" id="shop-by-occasion" aria-labelledby="occasionTitle">
           <div className="container">
-            <div className="section-head"><div><p className="eyebrow">Celebrate every moment</p><h2 id="occasionTitle">Shop by Occasion{themeNames.length > 0 ? " & Theme" : ""}</h2></div><p className="lede">Find cakes made for the moments and themes that matter.</p></div>
+            <div className="section-head"><div><p className="eyebrow">Celebrate every moment</p><h2 id="occasionTitle">Shop by Occasion{themeNames.length > 0 ? " & Theme" : ""}</h2></div><p className="lede">Find cakes made for the moments and themes that matter.</p><button type="button" className="mobile-section-view-all" onClick={browseAllOccasionThemeCakes}>View All <span aria-hidden="true">→</span></button></div>
             <div className="occasion-discovery">
-              <div className="occasion-discovery-group">
-                <h3>Choose an occasion</h3>
-                <div className="occasion-links">{occasionOptions.map(([value, label]) => <button className="btn btn-secondary" type="button" key={value} onClick={() => openMenuToFilter({ kind: "occasion", value, label })}>{label}</button>)}</div>
-                {occasionProductsResult.error && <p className="empty-menu" role="alert">{occasionProductsResult.error}</p>}
-              </div>
-              {themeNames.length > 0 && <div className="occasion-discovery-group theme-discovery">
-                <h3>Shop by theme</h3>
-                <div className="occasion-links theme-links" aria-label="Shop by theme">{themeNames.map((theme) => <button className="btn btn-secondary" type="button" key={theme} onClick={() => openMenuToFilter({ kind: "theme", value: theme, label: `${theme} Cakes` })}>{theme}</button>)}</div>
-              </div>}
               {occasionPreviews.length > 0 && <div className="occasion-preview-group">
-                <div className="occasion-preview-heading"><h3>Popular occasion cakes</h3><button type="button" className="browse-all-cakes" onClick={browseAllOccasionThemeCakes}>View All <span aria-hidden="true">→</span></button></div>
+                <div className="occasion-preview-heading"><h3>Popular occasion cakes</h3></div>
                 <div className="menu-grid">{occasionPreviews.map(({ product }) => <ProductCard key={`occasion-${product.id}`} product={product} discountPercent={occasionThemeDiscount} wishlist={wishlist} cart={cart} toggleWishlist={toggleWishlist} addToCart={addToCart} openCart={() => setPanel("cart")} />)}</div>
               </div>}
             </div>
@@ -685,8 +672,8 @@ function HomePage() {
                 <section className="builder-panel"><h3>Delivery details</h3><div className="builder-form-grid">
                   <div className="builder-field"><label htmlFor="customDeliveryType">Delivery type</label><select id="customDeliveryType" value={builder.deliveryType} onChange={(e) => updateBuilderField("deliveryType", e.target.value)}><option>Home Delivery</option><option>Store Pickup</option></select></div>
                   <div className="builder-field"><label htmlFor="customDeliveryDate">Delivery date</label><input id="customDeliveryDate" type="date" min={new Date().toISOString().slice(0, 10)} value={builder.deliveryDate} onChange={(e) => updateBuilderField("deliveryDate", e.target.value)} /></div>
-                  <div className="builder-field"><label htmlFor="customDeliveryTime">Delivery time slot</label><select id="customDeliveryTime" value={builder.deliveryTime} onChange={(e) => updateBuilderField("deliveryTime", e.target.value)}><option value="">Select a time slot</option><option>Morning (9 AM - 12 PM)</option><option>Afternoon (12 PM - 4 PM)</option><option>Evening (4 PM - 8 PM)</option></select></div>
-                  <div className="builder-field"><label htmlFor="customPincode">Pincode</label><input id="customPincode" value={builder.pincode} onChange={(e) => updateBuilderField("pincode", e.target.value)} inputMode="numeric" maxLength={6} /></div>
+                  {builder.deliveryType === "Home Delivery" && <><div className="builder-field"><label htmlFor="customDeliveryTime">Delivery time slot</label><select id="customDeliveryTime" value={builder.deliveryTime} onChange={(e) => updateBuilderField("deliveryTime", e.target.value)}><option value="">Select a time slot</option><option>Morning (9 AM - 12 PM)</option><option>Afternoon (12 PM - 4 PM)</option><option>Evening (4 PM - 8 PM)</option></select></div>
+                  <div className="builder-field"><label htmlFor="customPincode">Pincode</label><input id="customPincode" value={builder.pincode} onChange={(e) => updateBuilderField("pincode", e.target.value)} inputMode="numeric" maxLength={6} /></div></>}
                   {builder.deliveryType === "Home Delivery" && <div className="builder-field full"><label htmlFor="customAddress">Full delivery address</label><textarea id="customAddress" value={builder.address} onChange={(e) => updateBuilderField("address", e.target.value)} placeholder="House / flat, street and area" /></div>}
                 </div></section>
                 <section className="builder-panel"><h3>Customer details</h3><div className="builder-form-grid"><div className="builder-field"><label htmlFor="customCustomerName">Customer name</label><input id="customCustomerName" value={builder.customerName} onChange={(e) => updateBuilderField("customerName", e.target.value)} /></div><div className="builder-field"><label htmlFor="customPhone">WhatsApp / mobile number</label><input id="customPhone" value={builder.phone} onChange={(e) => updateBuilderField("phone", e.target.value)} type="tel" inputMode="tel" placeholder="10-digit mobile number" /></div></div></section>
@@ -711,6 +698,7 @@ function HomePage() {
       <footer id="footer-contact">
         <div className="footer-trust"><div className="container footer-trust-grid"><div className="footer-trust-item"><span><strong>Same Day Delivery</strong><span>Selected cakes & nearby areas</span></span></div><div className="footer-trust-item"><span><strong>Freshly Baked</strong><span>Prepared with care for every order</span></span></div><div className="footer-trust-item"><span><strong>Secure Payments</strong><span>Flexible payment options available</span></span></div></div></div>
         <div className="container footer-main"><div className="footer-grid">
+          <section className="footer-updates-card"><p>Darby's updates</p><h3>Offers &amp; fresh cake alerts.</h3><span>Get seasonal cakes, limited offers and festival order reminders directly on WhatsApp.</span><a href="https://wa.me/919835888631?text=Hi%20Darby%27s%20Pastries%2C%20please%20send%20me%20your%20new%20cake%20and%20offer%20updates." target="_blank" rel="noreferrer">Get WhatsApp updates <b aria-hidden="true">→</b></a><small>No spam — opt out anytime by messaging us.</small></section>
           <section><div className="footer-brand"><img src={asset("9ce04fb5e8b4.png")} alt="Darby's Pastries logo" /><div><strong>Darby's Pastries</strong><span>FRESHLY BAKED</span></div></div><p className="footer-tagline">Fresh cakes for everyday moments and memorable celebrations.</p><p className="footer-address">No. 52/1, Maheshwaramma Temple Road, Opp. Saraswathinagar, Mahadevapura Village and Post, Bengaluru - 560048</p><div className="footer-contact-list"><a className="footer-contact-link" href="https://wa.me/919835888631?text=Hello%20Darby%27s%20Pastries" target="_blank" rel="noreferrer">WhatsApp 98358 88631</a><a className="footer-contact-link" href="tel:+919835888631">Call 98358 88631</a><span className="footer-contact-link">Daily · 8 AM - 12 PM</span></div><div className="footer-contact-socials"><a className="footer-social" href="https://wa.me/919835888631" target="_blank" rel="noreferrer" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.6-1.7a11.8 11.8 0 0 0 5.3 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.3-6.1-3.5-8.3ZM12.1 21.6a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.9 1 1-3.8-.3-.4a9.8 9.8 0 1 1 8.6 4.8Zm5.4-7.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-.9 1.2-.3.3-.6.1a8 8 0 0 1-2.5-1.5 9.2 9.2 0 0 1-1.7-2.1c-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.2 0-.4 0-.5l-1-2.3c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.7.4s-1 1-1 2.5 1 2.9 1.2 3.1a11.3 11.3 0 0 0 4.4 4 10.7 10.7 0 0 0 1.5.6c.6.2 1.1.2 1.5.1.5-.1 1.8-.7 2-1.4s.3-1.3.2-1.4-.3-.2-.6-.4Z" /></svg></a><a className="footer-social" href="https://www.instagram.com/explore/locations/109932988176025" target="_blank" rel="noreferrer" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.4" cy="6.7" r="1.15" fill="currentColor"/></svg></a></div></section>
           <section className="footer-column"><h3>Quick Links</h3><nav><a href="#home">Home</a><a href="#menu">Menu</a><a href="#custom">Custom Cakes</a><a href="#reviews">Reviews</a><a href="#footer-contact">Contact</a></nav></section>
           <section className="footer-column"><h3>Cake Categories</h3><nav><Link to="/?mainCategory=cakes&cakeSubcategory=classic#menu">Classic Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=chocolate#menu">Chocolate Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=fruit#menu">Fruit Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=special#menu">Premium and Special Cake</Link><Link to="/?mainCategory=cakes&cakeSubcategory=photo#menu">Photo Cakes</Link><Link to="/?mainCategory=cakes&cakeSubcategory=desserts#menu">Desserts</Link></nav></section>
@@ -719,7 +707,7 @@ function HomePage() {
         </div><div className="footer-bottom"><span>© 2026 <strong>Darby's Pastries</strong>. All rights reserved.</span><span>Made with love in Bangalore</span></div></div>
       </footer>
 
-      <StorefrontPanels
+      {panel && <Suspense fallback={null}><StorefrontPanels
         panel={panel}
         setPanel={setPanel}
         cart={cart}
@@ -732,8 +720,8 @@ function HomePage() {
         addToCart={addToCart}
         buildOrderCartLink={buildOrderCartLink}
         placeCartOrder={placeCartOrder}
-      />
-      {adminOpen && <AdminPanel hero={hero} onHeroChange={setHero} onClose={() => setAdminOpen(false)} />}
+      /></Suspense>}
+      {adminOpen && <Suspense fallback={null}><AdminPanel hero={hero} onHeroChange={setHero} onClose={() => setAdminOpen(false)} /></Suspense>}
 
       {dialog && <div className="panel-backdrop open" onClick={() => setDialog("")}><div className="resource-dialog open" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="panel-header"><h2>{dialog}</h2><button className="panel-close" type="button" onClick={() => setDialog("")}>×</button></div><div className="panel-scroll"><p>{dialogContent[dialog]?.body || "More information is coming soon."}</p></div></div></div>}
     </div>
